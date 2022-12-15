@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterScriptCompiler", "MasterScriptCompiler\MasterScriptCompiler.csproj", "{0E4C347F-A736-46FD-86CB-73DFAD9F8EC2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterScriptApi", "MasterScriptApi\MasterScriptApi.csproj", "{E58A1992-1829-474D-9420-6C95A0402F97}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0E4C347F-A736-46FD-86CB-73DFAD9F8EC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E4C347F-A736-46FD-86CB-73DFAD9F8EC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E4C347F-A736-46FD-86CB-73DFAD9F8EC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E4C347F-A736-46FD-86CB-73DFAD9F8EC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E58A1992-1829-474D-9420-6C95A0402F97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E58A1992-1829-474D-9420-6C95A0402F97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E58A1992-1829-474D-9420-6C95A0402F97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E58A1992-1829-474D-9420-6C95A0402F97}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
