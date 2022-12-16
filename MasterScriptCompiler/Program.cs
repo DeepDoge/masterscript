@@ -14,9 +14,11 @@ const string exampleScript = @"
 	}
 
 	x: @double = 1
-	y: @double = x
+	y: @double = 2
 	number: int = 1 
 	number2: float = 2.5
+
+	y = x
 
 	ray: Ray
 }
