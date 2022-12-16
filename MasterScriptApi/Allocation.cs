@@ -34,7 +34,7 @@ public static unsafe class Allocation
 		if (head->ReferenceCount == 0) return;
 		// ReSharper disable once ConditionIsAlwaysTrueOrFalse
 		if (head->ReferenceCount < 0) throw new Exception("Reference count is negative. This should never happen.");
-		Interlocked.Decrement(ref head->ReferenceCount);
-		Marshal.FreeHGlobal((IntPtr)head);
+		if (Interlocked.Decrement(ref head->ReferenceCount) == 0)
+			Marshal.FreeHGlobal((IntPtr)head);
 	}
 } 

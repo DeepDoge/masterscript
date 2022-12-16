@@ -36,10 +36,10 @@ public class Compiler
 	private readonly HashSet<string> _setVariables = new();
 	private readonly HashSet<string> _referenceStructs = new();
 
-	private readonly List<string> _blockStructs = new();
-	private readonly List<string> _blockFunctions = new();
-	private readonly List<string> _blockVariables = new();
-	private readonly List<string> _blockReferences = new();
+	private readonly HashSet<string> _blockStructs = new();
+	private readonly HashSet<string> _blockFunctions = new();
+	private readonly HashSet<string> _blockVariables = new();
+	private readonly HashSet<string> _blockReferences = new();
 	
 	private readonly StringBuilder _cSharpScript = new();
 	private readonly StringBuilder _cSharpStructs = new();
@@ -278,7 +278,6 @@ public class Compiler
 					else if (!PrimitiveFloatTypes.Contains(type))
 						throw new Exception($"Cannot assign {type} to number");
 
-
 					var suffix = type switch
 					{
 						"byte" => "",
@@ -286,11 +285,11 @@ public class Compiler
 						"short" => "",
 						"ushort" => "",
 						"int" => "",
-						"uint" => "",
-						"long" => "",
-						"ulong" => "",
+						"uint" => "u",
+						"long" => "l",
+						"ulong" => "ul",
 						"float" => "f",
-						"double" => "",
+						"double" => "d",
 						_ => throw new Exception($"Unknown numeric type {type}")
 					};
 					_cSharpScript.Append($"{numberLiteralCommand.Value}{suffix}");
