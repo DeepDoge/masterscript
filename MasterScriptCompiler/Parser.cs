@@ -47,7 +47,7 @@ public static class Parser
 		public string Name;
 		public string ReturnType;
 		public List<VariableDefineCommand> Parameters;
-		public Block Body;
+		public Command[] Commands;
 	}
 
 	public class Block

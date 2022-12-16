@@ -2,34 +2,60 @@ using System;
 using System.Runtime.InteropServices;
 using MasterScriptApi;
 
+using _int_ = System.Int32;
+using _uint_ = System.UInt32;
+using _float_ = System.Single;
+using _double_ = System.Double;
+using _bool_ = System.Boolean;
+using _char_ = System.Char;
+using _byte_ = System.Byte;
+using _sbyte_ = System.SByte;
+using _short_ = System.Int16;
+using _ushort_ = System.UInt16;
+using _long_ = System.Int64;
+using _ulong_ = System.UInt64;
+
 namespace MasterScript
 {
 	public static unsafe class Program
 	{
 		[StructLayout(LayoutKind.Sequential)]
-		public struct int3_at_efe5e58f9264
+		public struct _int3_at_b147afe683b1_
 		{
-			public int x;
-			public int y;
-			public int z;
+			public _int_ x;
+			public _int_ y;
+			public _int_ z;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct Ray_at_efe5e58f9264
+		public struct _Ray_at_b147afe683b1_
 		{
-			public int3_at_efe5e58f9264 origin;
-			public int3_at_efe5e58f9264 direction;
+			public _int3_at_b147afe683b1_ origin;
+			public _int3_at_b147afe683b1_ direction;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _REF_double
+		public struct _REF_double_
 		{
-			public static readonly int Size = Marshal.SizeOf<double>();
-			public readonly double* Pointer;
+			public static readonly int Size = Marshal.SizeOf<_double_>();
+			public readonly _double_* Pointer;
 
-			public _REF_double(double initialValue)
+			public _REF_double_(_double_ initialValue)
 			{
-				Pointer = (double*)MasterScriptApi.Allocation.Alloc(Size);
+				Pointer = (_double_*)MasterScriptApi.Allocation.Alloc(Size);
+				*Pointer = initialValue;
+			}
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		public struct _REF_int3_at_b147afe683b1_
+		{
+			public static readonly int Size = Marshal.SizeOf<_int3_at_b147afe683b1_>();
+			public readonly _int3_at_b147afe683b1_* Pointer;
+
+			public _REF_int3_at_b147afe683b1_(_int3_at_b147afe683b1_ initialValue)
+			{
+				Pointer = (_int3_at_b147afe683b1_*)MasterScriptApi.Allocation.Alloc(Size);
 				*Pointer = initialValue;
 			}
 		}
@@ -37,22 +63,23 @@ namespace MasterScript
 		public static void Main()
 		{
 			{
-				// Block: efe5e58f9264
-// Struct: int3_at_efe5e58f9264
+				// Block: b147afe683b1
+// Struct: _int3_at_b147afe683b1_
 // ;
-// Struct: Ray_at_efe5e58f9264
+// Struct: _Ray_at_b147afe683b1_
 // ;
-				double* _x_;
-				_x_ = (double*)MasterScriptApi.Allocation.AddRef(new _REF_double(1).Pointer);
-				double* _y_;
-				_y_ = (double*)MasterScriptApi.Allocation.AddRef(new _REF_double(2).Pointer);
-				int _number_;
+				_double_* _x_;
+				_x_ = (_double_*)MasterScriptApi.Allocation.AddRef(new _REF_double_(1d).Pointer);
+				_double_* _y_;
+				_y_ = (_double_*)MasterScriptApi.Allocation.AddRef(new _REF_double_(2d).Pointer);
+				_int3_at_b147afe683b1_* _z_;
+				_int_ _number_;
 				_number_ = 1;
-				float _number2_;
+				_float_ _number2_;
 				_number2_ = 2.5f;
 				MasterScriptApi.Allocation.RemoveRef(_y_);
-				_y_ = (double*)MasterScriptApi.Allocation.AddRef(_x_);
-				Ray_at_efe5e58f9264 _ray_;
+				_y_ = (_double_*)MasterScriptApi.Allocation.AddRef(_x_);
+				_Ray_at_b147afe683b1_ _ray_;
 				MasterScriptApi.Allocation.RemoveRef(_x_);
 				MasterScriptApi.Allocation.RemoveRef(_y_);
 			}

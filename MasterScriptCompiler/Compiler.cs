@@ -65,14 +65,24 @@ public class Compiler
 	{
 		if (root.Parent != null) throw new Exception("Root block must not have a parent");
 		
-		string StructTypeName(Parser.StructDefineCommand structDefineCommand)
+		string BaseTypeName(string name)
 		{
-			return $"{structDefineCommand.Name}_at_{structDefineCommand.Block.Name}";
+			if (name.StartsWith("@")) name = name[1..];
+			if (PrimitiveTypes.Contains(name)) { }
+			else if (_structs.ContainsKey(name))
+			{
+				var structDefineCommand = _structs[name];
+				name = $"{structDefineCommand.Name}_at_{structDefineCommand.Block.Name}";
+			}
+			else throw new Exception($"Unknown type: {name}");
+			
+			return $"_{name}_";
 		}
 		
 		string ReferenceStructTypeName(string name)
-		{ 
-			return $"_REF_{name[1..]}";
+		{
+			if (!name.StartsWith("@")) throw new Exception("Reference struct name must start with @");
+			return $"_REF{BaseTypeName(name)}";
 		}
 
 		void DefineStruct(Parser.StructDefineCommand command)
@@ -116,11 +126,7 @@ public class Compiler
 		string AssertTypeName(string name)
 		{
 			var isReference = name.StartsWith("@");
-			var baseType = isReference ? name[1..] : name;
-			
-			if (PrimitiveTypes.Contains(baseType)) { }
-			else if (_structs.ContainsKey(baseType)) baseType = StructTypeName(_structs[baseType]);
-			else throw new Exception($"Type {name} not defined");
+			var baseType = BaseTypeName(name);
 			
 			if (!isReference) return baseType;
 			
@@ -131,19 +137,19 @@ public class Compiler
 		void AppendReferenceStructIfNotExist(string typeName)
 		{
 			if (!typeName.StartsWith("@")) throw new Exception($"Type {typeName} is not a reference");
-			var baseTypeName = typeName[1..];
-			if (_referenceStructs.Contains(baseTypeName)) return;
-			_referenceStructs.Add(baseTypeName);
+			if (_referenceStructs.Contains(typeName)) return;
+			_referenceStructs.Add(typeName);
+			var referenceName = AssertTypeName(typeName);
 			var referenceStructTypeName = ReferenceStructTypeName(typeName);
-			var referenceTypeName = AssertTypeName(typeName);
+			var baseTypeName = BaseTypeName(typeName);
 			_cSharpStructs.Append("[StructLayout(LayoutKind.Sequential)]");
 			_cSharpStructs.Append($"public struct {referenceStructTypeName}");
 			_cSharpStructs.Append("{");
 			_cSharpStructs.Append($"public static readonly int Size = Marshal.SizeOf<{baseTypeName}>();");
-			_cSharpStructs.Append($"public readonly {referenceTypeName} Pointer;");
+			_cSharpStructs.Append($"public readonly {referenceName} Pointer;");
 			_cSharpStructs.Append($"public {referenceStructTypeName}({baseTypeName} initialValue)");
 			_cSharpStructs.Append("{");
-			_cSharpStructs.Append($"Pointer = ({referenceTypeName})MasterScriptApi.Allocation.Alloc(Size);");
+			_cSharpStructs.Append($"Pointer = ({referenceName})MasterScriptApi.Allocation.Alloc(Size);");
 			_cSharpStructs.Append($"*Pointer = initialValue;");
 			_cSharpStructs.Append("}");
 			_cSharpStructs.Append("}");
@@ -244,9 +250,9 @@ public class Compiler
 				case Parser.StructDefineCommand structDefineCommand:
 				{
 					DefineStruct(structDefineCommand);
-					var structType = StructTypeName(structDefineCommand);
+					var baseTypeName = BaseTypeName(structDefineCommand.Name);
 					_cSharpStructs.Append("[StructLayout(LayoutKind.Sequential)]");
-					_cSharpStructs.Append($"public struct {structType}");
+					_cSharpStructs.Append($"public struct {baseTypeName}");
 					_cSharpStructs.Append("{");
 					foreach (var variableDefineCommand in structDefineCommand.Variables)
 					{
@@ -255,7 +261,7 @@ public class Compiler
 					}
 					_cSharpStructs.Append("}");
 					
-					_cSharpScript.AppendLine($"// Struct: {structType}");
+					_cSharpScript.AppendLine($"// Struct: {baseTypeName}");
 					_cSharpScript.Append("// ");
 					break;
 				}
@@ -306,6 +312,19 @@ public class Compiler
 using System;
 using System.Runtime.InteropServices;
 using MasterScriptApi;
+
+using _int_ = System.Int32;
+using _uint_ = System.UInt32;
+using _float_ = System.Single;
+using _double_ = System.Double;
+using _bool_ = System.Boolean;
+using _char_ = System.Char;
+using _byte_ = System.Byte;
+using _sbyte_ = System.SByte;
+using _short_ = System.Int16;
+using _ushort_ = System.UInt16;
+using _long_ = System.Int64;
+using _ulong_ = System.UInt64;
 
 namespace MasterScript
 {{
