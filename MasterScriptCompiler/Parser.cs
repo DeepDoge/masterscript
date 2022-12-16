@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -6,43 +5,44 @@ namespace MasterScriptCompiler;
 
 public static class Parser
 {
-	public record Command
+	public class Command
 	{
 		public int StartAt;
 		public int Length;
 		public Block Block;
 	}
 
-	public record VariableDefineCommand : Command
+	public class VariableDefineCommand : Command
 	{
 		public string Name;
 		public string Type;
 		public Command? Value;
 	}
 
-	public record VariableSetCommand : Command
+	public class VariableSetCommand : Command
 	{
 		public string Name;
 		public Command Value;
 	}
 
-	public record VariableGetCommand : Command
+	public class VariableGetCommand : Command
 	{
 		public string Name;
 	}
 
-	public record StructDefineCommand : Command
+	public class StructDefineCommand : Command
 	{
 		public string Name;
 		public List<VariableDefineCommand> Variables = new();
 	}
 	
-	public record NumberLiteralCommand : Command
+	public class NumberLiteralCommand : Command
 	{
+		public bool IsFloat;
 		public string Value;
 	}
 
-	public record FunctionDefineCommand : Command
+	public class FunctionDefineCommand : Command
 	{
 		public string Name;
 		public string ReturnType;
@@ -58,7 +58,7 @@ public static class Parser
 
 		public Block(Block? parent)
 		{
-			Name = $"_{string.Join("", Guid.NewGuid().ToString().Split('-').Take(2))}";
+			Name = $"{string.Join("", Guid.NewGuid().ToString().Split('-').Take(2))}";
 			Parent = parent;
 			Commands = new List<Command>();
 		}
@@ -82,12 +82,12 @@ public static class Parser
 			for (; i < script.Length; i++)
 			{
 				var c = script[i];
-				if (char.IsLetterOrDigit(c)) word.Append(c);
+				if (char.IsLetterOrDigit(c) || c == '@') word.Append(c);
 					else break;
 			}
 
 			if (word.Length == 0)
-				throw new Exception($"Expected word but got started with {script[i]}");
+				throw new Exception($"Expected word but got started with '{script[i]}'");
 				
 			return word.ToString();
 		}
@@ -174,21 +174,43 @@ public static class Parser
 			structDefineCommand.Length = i - structDefineCommand.StartAt;
 			return structDefineCommand;
 		}
-		
+
 		NumberLiteralCommand ExpectNumber()
 		{
 			SkipWhitespace();
 			var numberLiteralCommand = new NumberLiteralCommand { StartAt = i, Block = currentBlock };
 			
 			var number = new StringBuilder();
+			var isFloat = false;
 			for (; i < script.Length; i++)
 			{
 				var c = script[i];
-				if (char.IsDigit(c) || c == '.') number.Append(c);
-					else break;
+				switch (c)
+				{
+					case '0':
+					case '1':
+					case '2':
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
+						number.Append(c);
+						continue;
+					case '.':
+						if (isFloat) throw new Exception("Floating point number can only have one floating point");
+						isFloat = true;
+						number.Append(c);
+						continue;
+				}
+				break;
 			}
+
 			if (number.Length == 0) throw new Exception($"Expected number but got nothing.");
 			numberLiteralCommand.Value = number.ToString();
+			numberLiteralCommand.IsFloat = isFloat;
 			
 			numberLiteralCommand.Length = i - numberLiteralCommand.StartAt;
 			return numberLiteralCommand;
@@ -232,7 +254,8 @@ public static class Parser
 								return ExpectNumber();
 							}
 
-							throw new Exception($"Unexpected word '{word}'");
+							i = wordStartsAt;
+							return ExpectVariableGetCommand();
 						}
 					}
 				}

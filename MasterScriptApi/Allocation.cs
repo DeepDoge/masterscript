@@ -28,12 +28,13 @@ public static unsafe class Allocation
 		return ptr;
 	}
 	
-	public static void Dereference(void* ptr)
+	public static void RemoveRef(void* ptr)
 	{
 		var head = GetHead(ptr);
-		if (Interlocked.Decrement(ref head->ReferenceCount) == 0)
-		{
-			Marshal.FreeHGlobal((IntPtr)head);
-		}
+		if (head->ReferenceCount == 0) return;
+		// ReSharper disable once ConditionIsAlwaysTrueOrFalse
+		if (head->ReferenceCount < 0) throw new Exception("Reference count is negative. This should never happen.");
+		Interlocked.Decrement(ref head->ReferenceCount);
+		Marshal.FreeHGlobal((IntPtr)head);
 	}
 } 

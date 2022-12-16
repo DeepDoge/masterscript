@@ -4,9 +4,7 @@ const string exampleScript = @"
 {
 	struct int3
 	{
-		x: int
-		y: int
-		z: int
+		x: int y: int z: int
 	}
 
 	struct Ray
@@ -15,15 +13,14 @@ const string exampleScript = @"
 		direction: int3
 	}
 
-	number: int = 1
+	x: @double = 1
+	y: @double = x
+	number: int = 1 
 	number2: float = 2.5
-
-	hello: int = struct error
-	{
-	}
 
 	ray: Ray
 }
 ";
 
-File.WriteAllText(Path.Join(".", "compiled.cs"), Compiler.Stringify(Parser.ParseScript(exampleScript)));
+var compiler = new Compiler();
+File.WriteAllText(Path.Join(".", "compiled.cs"), compiler.Compile(Parser.ParseScript(exampleScript)));
