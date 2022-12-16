@@ -309,9 +309,7 @@ public class Compiler
 		AppendBlock(root);
 
 		var code = $@"
-using System;
 using System.Runtime.InteropServices;
-using MasterScriptApi;
 
 using _int_ = System.Int32;
 using _uint_ = System.UInt32;
