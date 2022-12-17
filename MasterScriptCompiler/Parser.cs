@@ -5,65 +5,6 @@ namespace MasterScriptCompiler;
 
 public static class Parser
 {
-	public class Command
-	{
-		public int StartAt;
-		public int Length;
-		public Block Block;
-	}
-
-	public class VariableDefineCommand : Command
-	{
-		public string Name;
-		public string Type;
-		public Command? Value;
-	}
-
-	public class VariableSetCommand : Command
-	{
-		public string Name;
-		public Command Value;
-	}
-
-	public class VariableGetCommand : Command
-	{
-		public string Name;
-	}
-
-	public class StructDefineCommand : Command
-	{
-		public string Name;
-		public List<VariableDefineCommand> Variables = new();
-	}
-	
-	public class NumberLiteralCommand : Command
-	{
-		public bool IsFloat;
-		public string Value;
-	}
-
-	public class FunctionDefineCommand : Command
-	{
-		public string Name;
-		public string ReturnType;
-		public List<VariableDefineCommand> Parameters;
-		public Command[] Commands;
-	}
-
-	public class Block
-	{
-		public readonly Block? Parent;
-		public readonly string Name;
-		public readonly List<Command> Commands;
-
-		public Block(Block? parent)
-		{
-			Name = $"{string.Join("", Guid.NewGuid().ToString().Split('-').Take(2))}";
-			Parent = parent;
-			Commands = new List<Command>();
-		}
-	}
-
 	public static Block ParseScript(string script)
 	{
 		const string endOfFile = "\0";
@@ -75,6 +16,81 @@ public static class Parser
 
 		var i = 0;
 
+		Command ExpectCommand()
+		{
+			var wordStartsAt = i;
+			var word = ExpectWord();
+			switch (word)
+			{
+				case "var":
+					return ExpectVariableDefineCommand();
+				case "set":
+					return ExpectVariableSetCommand();
+				case "get":
+					return ExpectVariableGetCommand();
+				case "struct":
+					return ExpectStructDefineCommand();
+				default:
+				{
+					var c = NextChar();
+					switch (c)
+					{
+						case ':':
+						{
+							i = wordStartsAt;
+							return ExpectVariableDefineCommand();
+						}
+						case '=':
+						{
+							i = wordStartsAt;
+							return ExpectVariableSetCommand();
+						}
+						default:
+						{
+							// Is Number
+							if (Regex.IsMatch(word, @"^\d+$"))
+							{
+								i = wordStartsAt;
+								return ExpectNumber();
+							}
+
+							i = wordStartsAt;
+							return ExpectVariableGetCommand();
+						}
+					}
+				}
+			}
+		}
+
+		Block ExpectBlock<T>(Func<T> expect) where T : Command
+		{
+			ExpectChar(startBlock);
+			var block = new Block(currentBlock);
+			currentBlock = block;
+			while (true)
+			{
+				if (endBlock.Contains(NextChar())) break;
+				i--;
+				block.Commands.Add(expect());
+			}
+
+			ExpectChar(endBlock);
+			currentBlock = block.Parent;
+
+			return block;
+		}
+		
+		try
+		{
+			return ExpectBlock(ExpectCommand);
+		}
+		catch (Exception exception)
+		{
+			throw new Exception($"Syntax error: {exception.Message}. at {script[..i]}", exception);
+		}
+		
+		#region Methods
+		
 		string ExpectWord()
 		{
 			var word = new StringBuilder();
@@ -215,78 +231,66 @@ public static class Parser
 			numberLiteralCommand.Length = i - numberLiteralCommand.StartAt;
 			return numberLiteralCommand;
 		}
-
-		Command ExpectCommand()
-		{
-			var wordStartsAt = i;
-			var word = ExpectWord();
-			switch (word)
-			{
-				case "var":
-					return ExpectVariableDefineCommand();
-				case "set":
-					return ExpectVariableSetCommand();
-				case "get":
-					return ExpectVariableGetCommand();
-				case "struct":
-					return ExpectStructDefineCommand();
-				default:
-				{
-					var c = NextChar();
-					switch (c)
-					{
-						case ':':
-						{
-							i = wordStartsAt;
-							return ExpectVariableDefineCommand();
-						}
-						case '=':
-						{
-							i = wordStartsAt;
-							return ExpectVariableSetCommand();
-						}
-						default:
-						{
-							// Is Number
-							if (Regex.IsMatch(word, @"^\d+$"))
-							{
-								i = wordStartsAt;
-								return ExpectNumber();
-							}
-
-							i = wordStartsAt;
-							return ExpectVariableGetCommand();
-						}
-					}
-				}
-			}
-		}
-
-		Block ExpectBlock<T>(Func<T> expect) where T : Command
-		{
-			ExpectChar(startBlock);
-			var block = new Block(currentBlock);
-			currentBlock = block;
-			while (true)
-			{
-				if (endBlock.Contains(NextChar())) break;
-				i--;
-				block.Commands.Add(expect());
-			}
-
-			ExpectChar(endBlock);
-			currentBlock = block.Parent;
-
-			return block;
-		}
 		
-		try
+		#endregion
+	}
+	
+	public class Block
+	{
+		public readonly Block? Parent;
+		public readonly string Name;
+		public readonly List<Command> Commands;
+
+		public Block(Block? parent)
 		{
-			return ExpectBlock(ExpectCommand);
+			Name = $"{string.Join("", Guid.NewGuid().ToString().Split('-').Take(2))}";
+			Parent = parent;
+			Commands = new List<Command>();
 		}
-		catch (Exception exception)
-		{
-			throw new Exception($"Error: {exception.Message}. at {script[..i]}", exception);
-		}
+	}
+	
+	public class Command
+	{
+		public int StartAt;
+		public int Length;
+		public Block Block;
+	}
+
+	public class VariableDefineCommand : Command
+	{
+		public string Name;
+		public string Type;
+		public Command? Value;
+	}
+
+	public class VariableSetCommand : Command
+	{
+		public string Name;
+		public Command Value;
+	}
+
+	public class VariableGetCommand : Command
+	{
+		public string Name;
+	}
+
+	public class StructDefineCommand : Command
+	{
+		public string Name;
+		public List<VariableDefineCommand> Variables = new();
+	}
+	
+	public class NumberLiteralCommand : Command
+	{
+		public bool IsFloat;
+		public string Value;
+	}
+
+	public class FunctionDefineCommand : Command
+	{
+		public string Name;
+		public string ReturnType;
+		public List<VariableDefineCommand> Parameters;
+		public Command[] Commands;
 	}
 }

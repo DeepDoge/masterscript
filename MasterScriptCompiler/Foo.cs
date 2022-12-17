@@ -18,7 +18,7 @@ namespace MasterScript
 	public static unsafe class Program
 	{
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _int3_at_b147afe683b1_
+		public struct _int3_at_0e9c5f242397_
 		{
 			public _int_ x;
 			public _int_ y;
@@ -26,10 +26,10 @@ namespace MasterScript
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _Ray_at_b147afe683b1_
+		public struct _Ray_at_0e9c5f242397_
 		{
-			public _int3_at_b147afe683b1_ origin;
-			public _int3_at_b147afe683b1_ direction;
+			public _int3_at_0e9c5f242397_ origin;
+			public _int3_at_0e9c5f242397_ direction;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -46,14 +46,14 @@ namespace MasterScript
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _REF_int3_at_b147afe683b1_
+		public struct _REF_int3_at_0e9c5f242397_
 		{
-			public static readonly int Size = Marshal.SizeOf<_int3_at_b147afe683b1_>();
-			public readonly _int3_at_b147afe683b1_* Pointer;
+			public static readonly int Size = Marshal.SizeOf<_int3_at_0e9c5f242397_>();
+			public readonly _int3_at_0e9c5f242397_* Pointer;
 
-			public _REF_int3_at_b147afe683b1_(_int3_at_b147afe683b1_ initialValue)
+			public _REF_int3_at_0e9c5f242397_(_int3_at_0e9c5f242397_ initialValue)
 			{
-				Pointer = (_int3_at_b147afe683b1_*)MasterScriptApi.Allocation.Alloc(Size);
+				Pointer = (_int3_at_0e9c5f242397_*)MasterScriptApi.Allocation.Alloc(Size);
 				*Pointer = initialValue;
 			}
 		}
@@ -61,23 +61,23 @@ namespace MasterScript
 		public static void Main()
 		{
 			{
-				// Block: b147afe683b1
-// Struct: _int3_at_b147afe683b1_
+				// Block: 0e9c5f242397
+// Struct: _int3_at_0e9c5f242397_
 // ;
-// Struct: _Ray_at_b147afe683b1_
+// Struct: _Ray_at_0e9c5f242397_
 // ;
 				_double_* _x_;
 				_x_ = (_double_*)MasterScriptApi.Allocation.AddRef(new _REF_double_(1d).Pointer);
 				_double_* _y_;
 				_y_ = (_double_*)MasterScriptApi.Allocation.AddRef(new _REF_double_(2d).Pointer);
-				_int3_at_b147afe683b1_* _z_;
+				_int3_at_0e9c5f242397_* _z_;
 				_int_ _number_;
 				_number_ = 1;
 				_float_ _number2_;
 				_number2_ = 2.5f;
 				MasterScriptApi.Allocation.RemoveRef(_y_);
 				_y_ = (_double_*)MasterScriptApi.Allocation.AddRef(_x_);
-				_Ray_at_b147afe683b1_ _ray_;
+				_Ray_at_0e9c5f242397_ _ray_;
 				MasterScriptApi.Allocation.RemoveRef(_x_);
 				MasterScriptApi.Allocation.RemoveRef(_y_);
 			}

@@ -25,5 +25,4 @@ const string exampleScript = @"
 }
 ";
 
-var compiler = new Compiler();
-File.WriteAllText(Path.Join(".", "compiled.cs"), compiler.Compile(Parser.ParseScript(exampleScript)));
+File.WriteAllText(Path.Join(".", "compiled.cs"), Compiler.Compile(exampleScript));

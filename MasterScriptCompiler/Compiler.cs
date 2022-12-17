@@ -2,313 +2,53 @@ using System.Text;
 
 namespace MasterScriptCompiler;
 
-public class Compiler
+/*
+ * Need to refactor this later.
+ */
+public static class Compiler
 {
 	public static readonly string[] PrimitiveIntegerTypes =
 	{
-		"int", 
-		"uint", 
-		"long", 
-		"ulong", 
-		"short", 
-		"ushort", 
-		"byte", 
+		"int",
+		"uint",
+		"long",
+		"ulong",
+		"short",
+		"ushort",
+		"byte",
 		"sbyte"
 	};
-	
+
 	public static readonly string[] PrimitiveFloatTypes =
 	{
-		"float", 
+		"float",
 		"double"
 	};
-	
+
 	public static readonly string[] PrimitiveNumericTypes = PrimitiveIntegerTypes.Concat(PrimitiveFloatTypes).ToArray();
 
-	public static readonly string[] PrimitiveTypes = new [] 
+	public static readonly string[] PrimitiveTypes = new[]
 	{
 		"bool",
 		"char"
 	}.Concat(PrimitiveNumericTypes).ToArray();
 
-	private readonly Dictionary<string, Parser.StructDefineCommand> _structs = new();
-	private readonly Dictionary<string, Parser.FunctionDefineCommand> _functions = new();
-	private readonly Dictionary<string, Parser.VariableDefineCommand> _variables = new();
-	private readonly HashSet<string> _setVariables = new();
-	private readonly HashSet<string> _referenceStructs = new();
-
-	private readonly HashSet<string> _blockStructs = new();
-	private readonly HashSet<string> _blockFunctions = new();
-	private readonly HashSet<string> _blockVariables = new();
-	private readonly HashSet<string> _blockReferences = new();
-	
-	private readonly StringBuilder _cSharpScript = new();
-	private readonly StringBuilder _cSharpStructs = new();
-
-	public void Reset()
+	public static string Compile(string script)
 	{
-		_structs.Clear();
-		_functions.Clear();
-		_variables.Clear();
-		_setVariables.Clear();
-		_referenceStructs.Clear();
-		
-		_blockStructs.Clear();
-		_blockFunctions.Clear();
-		_blockVariables.Clear();
-		_blockReferences.Clear();
-		
-		_cSharpScript.Clear();
-		_cSharpStructs.Clear();
-	}
+		var root = Parser.ParseScript(script);
 
-	public string Compile(Parser.Block root)
-	{
-		if (root.Parent != null) throw new Exception("Root block must not have a parent");
-		
-		string BaseTypeName(string name)
-		{
-			if (name.StartsWith("@")) name = name[1..];
-			if (PrimitiveTypes.Contains(name)) { }
-			else if (_structs.ContainsKey(name))
-			{
-				var structDefineCommand = _structs[name];
-				name = $"{structDefineCommand.Name}_at_{structDefineCommand.Block.Name}";
-			}
-			else throw new Exception($"Unknown type: {name}");
-			
-			return $"_{name}_";
-		}
-		
-		string ReferenceStructTypeName(string name)
-		{
-			if (!name.StartsWith("@")) throw new Exception("Reference struct name must start with @");
-			return $"_REF{BaseTypeName(name)}";
-		}
+		var structs = new Dictionary<string, Parser.StructDefineCommand>();
+		var functions = new Dictionary<string, Parser.FunctionDefineCommand>();
+		var variables = new Dictionary<string, Parser.VariableDefineCommand>();
+		var setVariables = new HashSet<string>();
+		var referenceStructs = new HashSet<string>();
 
-		void DefineStruct(Parser.StructDefineCommand command)
-		{
-			if (_structs.ContainsKey(command.Name)) throw new Exception($"Struct {command.Name} already defined");
-			_structs.Add(command.Name, command);
-			_blockStructs.Add(command.Name);
-		}
-
-		void DefineFunction(Parser.FunctionDefineCommand command)
-		{
-			if (_functions.ContainsKey(command.Name)) throw new Exception($"Function {command.Name} already defined");
-			_functions.Add(command.Name, command);
-			_blockFunctions.Add(command.Name);
-		}
-
-		void DefineVariable(Parser.VariableDefineCommand command)
-		{
-			if (_variables.ContainsKey(command.Name)) throw new Exception($"Variable {command.Name} already defined");
-			_variables.Add(command.Name, command);
-			_blockVariables.Add(command.Name);
-		}
-		
-		void DefineReference(Parser.VariableDefineCommand command)
-		{
-			_blockReferences.Add(command.Name);
-		}
-
-		string AssertFunctionName(string name)
-		{
-			if (_functions.ContainsKey(name)) return name;
-			throw new Exception($"Function {name} not defined");
-		}
-
-		string AssertVariableName(string name)
-		{
-			if (_variables.ContainsKey(name)) return $"_{name}_";
-			throw new Exception($"Variable {name} not defined");
-		}
-
-		string AssertTypeName(string name)
-		{
-			var isReference = name.StartsWith("@");
-			var baseType = BaseTypeName(name);
-			
-			if (!isReference) return baseType;
-			
-			AppendReferenceStructIfNotExist(name);
-			return $"{baseType}*";
-		}
-
-		void AppendReferenceStructIfNotExist(string typeName)
-		{
-			if (!typeName.StartsWith("@")) throw new Exception($"Type {typeName} is not a reference");
-			if (_referenceStructs.Contains(typeName)) return;
-			_referenceStructs.Add(typeName);
-			var referenceName = AssertTypeName(typeName);
-			var referenceStructTypeName = ReferenceStructTypeName(typeName);
-			var baseTypeName = BaseTypeName(typeName);
-			_cSharpStructs.Append("[StructLayout(LayoutKind.Sequential)]");
-			_cSharpStructs.Append($"public struct {referenceStructTypeName}");
-			_cSharpStructs.Append("{");
-			_cSharpStructs.Append($"public static readonly int Size = Marshal.SizeOf<{baseTypeName}>();");
-			_cSharpStructs.Append($"public readonly {referenceName} Pointer;");
-			_cSharpStructs.Append($"public {referenceStructTypeName}({baseTypeName} initialValue)");
-			_cSharpStructs.Append("{");
-			_cSharpStructs.Append($"Pointer = ({referenceName})MasterScriptApi.Allocation.Alloc(Size);");
-			_cSharpStructs.Append($"*Pointer = initialValue;");
-			_cSharpStructs.Append("}");
-			_cSharpStructs.Append("}");
-		}
-		
-		void AppendBlock(Parser.Block block)
-		{
-			_cSharpScript.AppendLine($"{{ // Block: {block.Name}");
-			foreach (var command in block.Commands)
-			{
-				AppendCommand(command);
-				_cSharpScript.AppendLine(";");
-			}
-			foreach (var variableDefineCommand in _blockReferences.Select(referenceName => _variables[referenceName]))
-			{
-				var definitionName = AssertVariableName(variableDefineCommand.Name);
-				_cSharpScript.Append($"MasterScriptApi.Allocation.RemoveRef({definitionName});");
-			}
-			_cSharpScript.Append('}');
-
-			foreach (var structName in _blockStructs) _structs.Remove(structName);
-			foreach (var functionName in _blockFunctions) _functions.Remove(functionName);
-			foreach (var referenceName in _blockReferences) _referenceStructs.Remove(referenceName);
-			foreach (var variableName in _blockVariables)
-			{
-				_setVariables.Remove(variableName);
-				_variables.Remove(variableName);
-			}
-
-			_blockStructs.Clear();
-			_blockFunctions.Clear();
-			_blockVariables.Clear();
-			_blockReferences.Clear();
-		}
-
-		void AppendCommand(Parser.Command command, Parser.Command? previousCommand = null)
-		{
-			switch (command)
-			{
-				case Parser.VariableDefineCommand variableDefineCommand:
-				{
-					DefineVariable(variableDefineCommand);
-					var type = AssertTypeName(variableDefineCommand.Type);
-					var name = AssertVariableName(variableDefineCommand.Name);
-
-					_cSharpScript.Append($"{type} {name}");
-					if (variableDefineCommand.Value != null)
-					{
-						_cSharpScript.Append(';');
-						var variableSetCommand = new Parser.VariableSetCommand
-						{
-							Name = variableDefineCommand.Name,
-							Value = variableDefineCommand.Value
-						};
-						AppendCommand(variableSetCommand, variableDefineCommand);
-					}
-					break;
-				}
-				case Parser.VariableSetCommand variableSetCommand:
-				{
-					var definitionName = AssertVariableName(variableSetCommand.Name);
-					var definitionVariable = _variables[variableSetCommand.Name];
-					var definitionTypeName = AssertTypeName(definitionVariable.Type);
-					var isReference = definitionVariable.Type.StartsWith("@");
-					
-					if (_setVariables.Contains(definitionName))
-					{
-						_cSharpScript.Append($"MasterScriptApi.Allocation.RemoveRef({definitionName});");
-					}
-					
-					_setVariables.Add(definitionName);
-					_cSharpScript.Append($"{definitionName} = ");
-					if (isReference)
-					{
-						DefineReference(definitionVariable);
-						if (variableSetCommand.Value is Parser.VariableGetCommand variableGetCommand)
-						{
-							var valueName = AssertVariableName(variableGetCommand.Name);
-							_cSharpScript.Append($"({definitionTypeName})MasterScriptApi.Allocation.AddRef({valueName})");
-						}
-						else
-						{
-							var referenceStructType = ReferenceStructTypeName(definitionVariable.Type);
-							_cSharpScript.Append($"({definitionTypeName})MasterScriptApi.Allocation.AddRef(new {referenceStructType}(");
-							AppendCommand(variableSetCommand.Value, variableSetCommand);
-							_cSharpScript.Append(").Pointer)");
-						}
-					}
-					else AppendCommand(variableSetCommand.Value, variableSetCommand);
-					break;
-				}
-				case Parser.VariableGetCommand variableGetCommand:
-				{
-					var name = AssertVariableName(variableGetCommand.Name);
-					_cSharpScript.Append($"{name}");
-					break;
-				}
-				case Parser.StructDefineCommand structDefineCommand:
-				{
-					DefineStruct(structDefineCommand);
-					var baseTypeName = BaseTypeName(structDefineCommand.Name);
-					_cSharpStructs.Append("[StructLayout(LayoutKind.Sequential)]");
-					_cSharpStructs.Append($"public struct {baseTypeName}");
-					_cSharpStructs.Append("{");
-					foreach (var variableDefineCommand in structDefineCommand.Variables)
-					{
-						var type = AssertTypeName(variableDefineCommand.Type);
-						_cSharpStructs.Append($"public {type} {variableDefineCommand.Name};");
-					}
-					_cSharpStructs.Append("}");
-					
-					_cSharpScript.AppendLine($"// Struct: {baseTypeName}");
-					_cSharpScript.Append("// ");
-					break;
-				}
-				case Parser.NumberLiteralCommand numberLiteralCommand:
-				{
-					var name = previousCommand switch
-					{
-						Parser.VariableSetCommand variableSetCommand => variableSetCommand.Name,
-						Parser.VariableDefineCommand variableDefineCommand => variableDefineCommand.Name,
-						_ => throw new Exception("Number literal must be assigned to variable")
-					};
-					var type = _variables[name].Type.TrimStart('@');
-
-
-					if (PrimitiveIntegerTypes.Contains(type))
-					{
-						if (numberLiteralCommand.IsFloat)
-							throw new Exception($"Cannot assign float to {type}");
-					}
-					else if (!PrimitiveFloatTypes.Contains(type))
-						throw new Exception($"Cannot assign {type} to number");
-
-					var suffix = type switch
-					{
-						"byte" => "",
-						"sbyte" => "",
-						"short" => "",
-						"ushort" => "",
-						"int" => "",
-						"uint" => "u",
-						"long" => "l",
-						"ulong" => "ul",
-						"float" => "f",
-						"double" => "d",
-						_ => throw new Exception($"Unknown numeric type {type}")
-					};
-					_cSharpScript.Append($"{numberLiteralCommand.Value}{suffix}");
-
-					break;
-				}
-				default: throw new Exception($"Unexpected command type '{command.GetType()}'");
-			}
-		}
+		var cSharpScript = new StringBuilder();
+		var cSharpStructs = new StringBuilder();
 
 		AppendBlock(root);
 
-		var code = $@"
+		return $@"
 using System.Runtime.InteropServices;
 
 using _int_ = System.Int32;
@@ -328,16 +68,274 @@ namespace MasterScript
 {{
 	public static unsafe class Program
 	{{
-		{_cSharpStructs}
+		{cSharpStructs}
 
 		public static void Main()
 		{{
-			{_cSharpScript}
+			{cSharpScript}
 		}}
 	}}
 }}
 ".Trim();
-		Reset();
-		return code;
+
+		void AppendBlock(Parser.Block block)
+		{
+			var blockStructs = new HashSet<string>();
+			var blockFunctions = new HashSet<string>();
+			var blockVariables = new HashSet<string>();
+			var blockReferences = new HashSet<string>();
+			
+			cSharpScript.AppendLine($"{{ // Block: {block.Name}");
+			
+			foreach (var command in block.Commands)
+			{
+				try
+				{
+					AppendCommand(command);
+					cSharpScript.AppendLine(";");
+				}
+				catch (Exception exception)
+				{
+					throw new Exception($"Compiler error: {exception.Message} at {script[..command.StartAt]}{script.Substring(command.StartAt, command.Length)}", exception);
+				}
+			}
+
+			foreach (var variableDefineCommand in blockReferences.Select(referenceName => variables[referenceName]))
+			{
+				var definitionName = AssertVariableName(variableDefineCommand.Name);
+				cSharpScript.Append($"MasterScriptApi.Allocation.RemoveRef({definitionName});");
+			}
+
+			cSharpScript.Append('}');
+
+			foreach (var structName in blockStructs) structs.Remove(structName);
+			foreach (var functionName in blockFunctions) functions.Remove(functionName);
+			foreach (var referenceName in blockReferences) referenceStructs.Remove(referenceName);
+			foreach (var variableName in blockVariables)
+			{
+				setVariables.Remove(variableName);
+				variables.Remove(variableName);
+			}
+
+			#region Methods
+
+			string BaseTypeName(string name)
+			{
+				if (name.StartsWith("@")) name = name[1..];
+				if (PrimitiveTypes.Contains(name))
+				{
+				}
+				else if (structs.ContainsKey(name))
+				{
+					var structDefineCommand = structs[name];
+					name = $"{structDefineCommand.Name}_at_{structDefineCommand.Block.Name}";
+				}
+				else throw new Exception($"Unknown type: {name}");
+
+				return $"_{name}_";
+			}
+
+			string ReferenceStructTypeName(string name)
+			{
+				if (!name.StartsWith("@")) throw new Exception("Reference struct name must start with @");
+				return $"_REF{BaseTypeName(name)}";
+			}
+
+			void DefineStruct(Parser.StructDefineCommand command)
+			{
+				if (structs.ContainsKey(command.Name)) throw new Exception($"Struct {command.Name} already defined");
+				structs.Add(command.Name, command);
+				blockStructs.Add(command.Name);
+			}
+
+			void DefineFunction(Parser.FunctionDefineCommand command)
+			{
+				if (functions.ContainsKey(command.Name)) throw new Exception($"Function {command.Name} already defined");
+				functions.Add(command.Name, command);
+				blockFunctions.Add(command.Name);
+			}
+
+			void DefineVariable(Parser.VariableDefineCommand command)
+			{
+				if (variables.ContainsKey(command.Name)) throw new Exception($"Variable {command.Name} already defined");
+				variables.Add(command.Name, command);
+				blockVariables.Add(command.Name);
+			}
+
+			void DefineReference(Parser.VariableDefineCommand command)
+			{
+				blockReferences.Add(command.Name);
+			}
+
+			string AssertFunctionName(string name)
+			{
+				if (functions.ContainsKey(name)) return name;
+				throw new Exception($"Function {name} not defined");
+			}
+
+			string AssertVariableName(string name)
+			{
+				if (variables.ContainsKey(name)) return $"_{name}_";
+				throw new Exception($"Variable {name} not defined");
+			}
+
+			string AssertTypeName(string name)
+			{
+				var isReference = name.StartsWith("@");
+				var baseType = BaseTypeName(name);
+
+				if (!isReference) return baseType;
+
+				AppendReferenceStructIfNotExist(name);
+				return $"{baseType}*";
+			}
+
+			void AppendReferenceStructIfNotExist(string typeName)
+			{
+				if (!typeName.StartsWith("@")) throw new Exception($"Type {typeName} is not a reference");
+				if (referenceStructs.Contains(typeName)) return;
+				referenceStructs.Add(typeName);
+				var referenceName = AssertTypeName(typeName);
+				var referenceStructTypeName = ReferenceStructTypeName(typeName);
+				var baseTypeName = BaseTypeName(typeName);
+				cSharpStructs.Append("[StructLayout(LayoutKind.Sequential)]");
+				cSharpStructs.Append($"public struct {referenceStructTypeName}");
+				cSharpStructs.Append("{");
+				cSharpStructs.Append($"public static readonly int Size = Marshal.SizeOf<{baseTypeName}>();");
+				cSharpStructs.Append($"public readonly {referenceName} Pointer;");
+				cSharpStructs.Append($"public {referenceStructTypeName}({baseTypeName} initialValue)");
+				cSharpStructs.Append("{");
+				cSharpStructs.Append($"Pointer = ({referenceName})MasterScriptApi.Allocation.Alloc(Size);");
+				cSharpStructs.Append($"*Pointer = initialValue;");
+				cSharpStructs.Append("}");
+				cSharpStructs.Append("}");
+			}
+
+			void AppendCommand(Parser.Command command, Parser.Command? previousCommand = null)
+			{
+				switch (command)
+				{
+					case Parser.VariableDefineCommand variableDefineCommand:
+					{
+						DefineVariable(variableDefineCommand);
+						var type = AssertTypeName(variableDefineCommand.Type);
+						var name = AssertVariableName(variableDefineCommand.Name);
+
+						cSharpScript.Append($"{type} {name}");
+						if (variableDefineCommand.Value != null)
+						{
+							cSharpScript.Append(';');
+							var variableSetCommand = new Parser.VariableSetCommand
+							{
+								Name = variableDefineCommand.Name,
+								Value = variableDefineCommand.Value
+							};
+							AppendCommand(variableSetCommand, variableDefineCommand);
+						}
+
+						break;
+					}
+					case Parser.VariableSetCommand variableSetCommand:
+					{
+						var definitionName = AssertVariableName(variableSetCommand.Name);
+						var definitionVariable = variables[variableSetCommand.Name];
+						var definitionTypeName = AssertTypeName(definitionVariable.Type);
+						var isReference = definitionVariable.Type.StartsWith("@");
+
+						if (setVariables.Contains(definitionName))
+						{
+							cSharpScript.Append($"MasterScriptApi.Allocation.RemoveRef({definitionName});");
+						}
+
+						setVariables.Add(definitionName);
+						cSharpScript.Append($"{definitionName} = ");
+						if (isReference)
+						{
+							DefineReference(definitionVariable);
+							if (variableSetCommand.Value is Parser.VariableGetCommand variableGetCommand)
+							{
+								var valueName = AssertVariableName(variableGetCommand.Name);
+								cSharpScript.Append($"({definitionTypeName})MasterScriptApi.Allocation.AddRef({valueName})");
+							}
+							else
+							{
+								var referenceStructType = ReferenceStructTypeName(definitionVariable.Type);
+								cSharpScript.Append($"({definitionTypeName})MasterScriptApi.Allocation.AddRef(new {referenceStructType}(");
+								AppendCommand(variableSetCommand.Value, variableSetCommand);
+								cSharpScript.Append(").Pointer)");
+							}
+						}
+						else AppendCommand(variableSetCommand.Value, variableSetCommand);
+
+						break;
+					}
+					case Parser.VariableGetCommand variableGetCommand:
+					{
+						var name = AssertVariableName(variableGetCommand.Name);
+						cSharpScript.Append($"{name}");
+						break;
+					}
+					case Parser.StructDefineCommand structDefineCommand:
+					{
+						DefineStruct(structDefineCommand);
+						var baseTypeName = BaseTypeName(structDefineCommand.Name);
+						cSharpStructs.Append("[StructLayout(LayoutKind.Sequential)]");
+						cSharpStructs.Append($"public struct {baseTypeName}");
+						cSharpStructs.Append("{");
+						foreach (var variableDefineCommand in structDefineCommand.Variables)
+						{
+							var type = AssertTypeName(variableDefineCommand.Type);
+							cSharpStructs.Append($"public {type} {variableDefineCommand.Name};");
+						}
+
+						cSharpStructs.Append("}");
+
+						cSharpScript.AppendLine($"// Struct: {baseTypeName}");
+						cSharpScript.Append("// ");
+						break;
+					}
+					case Parser.NumberLiteralCommand numberLiteralCommand:
+					{
+						var name = previousCommand switch
+						{
+							Parser.VariableSetCommand variableSetCommand => variableSetCommand.Name,
+							Parser.VariableDefineCommand variableDefineCommand => variableDefineCommand.Name,
+							_ => throw new Exception("Number literal must be assigned to variable")
+						};
+						var type = variables[name].Type.TrimStart('@');
+
+
+						if (PrimitiveIntegerTypes.Contains(type))
+						{
+							if (numberLiteralCommand.IsFloat)
+								throw new Exception($"Cannot assign float to {type}");
+						}
+						else if (!PrimitiveFloatTypes.Contains(type))
+							throw new Exception($"Cannot assign {type} to number");
+
+						var suffix = type switch
+						{
+							"byte" => "",
+							"sbyte" => "",
+							"short" => "",
+							"ushort" => "",
+							"int" => "",
+							"uint" => "u",
+							"long" => "l",
+							"ulong" => "ul",
+							"float" => "f",
+							"double" => "d",
+							_ => throw new Exception($"Unknown numeric type {type}")
+						};
+						cSharpScript.Append($"{numberLiteralCommand.Value}{suffix}");
+
+						break;
+					}
+					default: throw new Exception($"Unexpected command type '{command.GetType()}'");
+				}
+			}
+			
+			#endregion
+		}
 	}
 }
