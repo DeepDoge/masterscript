@@ -8,13 +8,40 @@ public static class Parser
 	public static Block ParseScript(string script)
 	{
 		const string endOfFile = "\0";
-		const string endOfLine = endOfFile + "\n;";
+		// const string endOfLine = endOfFile + "\n;"; NO LINE END!!!!
 		const string startBlock = "{(";
 		const string endBlock = endOfFile + "})";
 
-		var currentBlock = null as Block;
-
+		var currentBlock = null! as Block;
 		var i = 0;
+		
+		try
+		{
+			return ExpectBlock();
+		}
+		catch (Exception exception)
+		{
+			throw new Exception($"Syntax error: {exception.Message}. At {script[..i]}", exception);
+		}
+		
+		Block ExpectBlock()
+		{
+			ExpectChar(startBlock);
+			var block = new Block(i.ToString())
+			{
+				Parent = currentBlock
+			};
+			currentBlock = block;
+			while (true)
+			{
+				if (endBlock.Contains(NextCharPeek())) break;
+				block.Commands.Add(ExpectCommand());
+			}
+			currentBlock = block.Parent;
+			ExpectChar(endBlock);
+
+			return block;
+		}
 
 		Command ExpectCommand()
 		{
@@ -62,35 +89,6 @@ public static class Parser
 			}
 		}
 
-		Block ExpectBlock<T>(Func<T> expect) where T : Command
-		{
-			ExpectChar(startBlock);
-			var block = new Block(currentBlock);
-			currentBlock = block;
-			while (true)
-			{
-				if (endBlock.Contains(NextChar())) break;
-				i--;
-				block.Commands.Add(expect());
-			}
-
-			ExpectChar(endBlock);
-			currentBlock = block.Parent;
-
-			return block;
-		}
-		
-		try
-		{
-			return ExpectBlock(ExpectCommand);
-		}
-		catch (Exception exception)
-		{
-			throw new Exception($"Syntax error: {exception.Message}. at {script[..i]}", exception);
-		}
-		
-		#region Methods
-		
 		string ExpectWord()
 		{
 			var word = new StringBuilder();
@@ -120,6 +118,17 @@ public static class Parser
 			return '\0';
 		}
 		
+		char NextCharPeek()
+		{
+			for(; i < script.Length; i++)
+			{
+				var c = script[i];
+				if (char.IsWhiteSpace(c)) continue;
+				return c;
+			} 
+			return '\0';
+		}
+		
 		void SkipWhitespace()
 		{
 			for (; i < script.Length; i++)
@@ -136,26 +145,40 @@ public static class Parser
 			if (chars.Contains(c)) return c;
 			throw new Exception($"Unexpected character '{c}' while expecting one of '{string.Join(", ", chars)}'");
 		}
-		
+
 		VariableDefineCommand ExpectVariableDefineCommand()
 		{
-			var variableDefineCommand = new VariableDefineCommand { StartAt = i, Block = currentBlock };
-			
-			variableDefineCommand.Name = ExpectWord();
+			var variableDefineCommand = new VariableDefineCommand
+			{
+				StartAt = i,
+				Name = ExpectWord()
+			};
+
 			ExpectChar(":");
-			variableDefineCommand.Type = ExpectWord();
+			if (NextCharPeek() == '{')
+			{
+				var structDefineCommand = ExpectStructDefineCommand();
+				currentBlock.Commands.Add(structDefineCommand);
+				variableDefineCommand.Type = structDefineCommand.Name;
+			}
+			else
+				variableDefineCommand.Type = ExpectWord();
+
 			if (NextChar() == '=') variableDefineCommand.Value = ExpectCommand();
 			else i--;
-			
+
 			variableDefineCommand.Length = i - variableDefineCommand.StartAt;
 			return variableDefineCommand;
 		}
 
 		VariableSetCommand ExpectVariableSetCommand()
 		{
-			var variableSetCommand = new VariableSetCommand { StartAt = i, Block = currentBlock };
-			
-			variableSetCommand.Name = ExpectWord();
+			var variableSetCommand = new VariableSetCommand
+			{
+				StartAt = i,
+				Name = ExpectWord()
+			};
+
 			ExpectChar("=");
 			variableSetCommand.Value = ExpectCommand();
 			
@@ -165,28 +188,23 @@ public static class Parser
 
 		VariableGetCommand ExpectVariableGetCommand()
 		{
-			var variableGetCommand = new VariableGetCommand { StartAt = i, Block = currentBlock };
-			
-			variableGetCommand.Name = ExpectWord();
-			
+			var variableGetCommand = new VariableGetCommand
+			{
+				StartAt = i,
+				Name = ExpectWord()
+			};
+
 			variableGetCommand.Length = i - variableGetCommand.StartAt;
 			return variableGetCommand;
 		}
 
 		StructDefineCommand ExpectStructDefineCommand()
 		{
-			var structDefineCommand = new StructDefineCommand { StartAt = i, Block = currentBlock };
-			
-			structDefineCommand.Name = ExpectWord();
-			ExpectChar(startBlock);
-			while (!endBlock.Contains(NextChar()))
-			{
-				i--;
-				structDefineCommand.Variables.Add(ExpectVariableDefineCommand());
-			}
-			i--;
-			ExpectChar(endBlock);
-			
+			var structDefineCommand = new StructDefineCommand { StartAt = i };
+
+			structDefineCommand.Name = NextCharPeek() == '{' ? $"_AnonymousStruct{structDefineCommand.StartAt}_" : ExpectWord();
+			structDefineCommand.Block = ExpectBlock();
+
 			structDefineCommand.Length = i - structDefineCommand.StartAt;
 			return structDefineCommand;
 		}
@@ -194,7 +212,7 @@ public static class Parser
 		NumberLiteralCommand ExpectNumber()
 		{
 			SkipWhitespace();
-			var numberLiteralCommand = new NumberLiteralCommand { StartAt = i, Block = currentBlock };
+			var numberLiteralCommand = new NumberLiteralCommand { StartAt = i };
 			
 			var number = new StringBuilder();
 			var isFloat = false;
@@ -231,20 +249,17 @@ public static class Parser
 			numberLiteralCommand.Length = i - numberLiteralCommand.StartAt;
 			return numberLiteralCommand;
 		}
-		
-		#endregion
 	}
 	
 	public class Block
 	{
-		public readonly Block? Parent;
+		public Block? Parent;
 		public readonly string Name;
 		public readonly List<Command> Commands;
 
-		public Block(Block? parent)
+		public Block(string name)
 		{
-			Name = $"{string.Join("", Guid.NewGuid().ToString().Split('-').Take(2))}";
-			Parent = parent;
+			Name = name;
 			Commands = new List<Command>();
 		}
 	}
@@ -253,7 +268,6 @@ public static class Parser
 	{
 		public int StartAt;
 		public int Length;
-		public Block Block;
 	}
 
 	public class VariableDefineCommand : Command
@@ -277,20 +291,12 @@ public static class Parser
 	public class StructDefineCommand : Command
 	{
 		public string Name;
-		public List<VariableDefineCommand> Variables = new();
+		public Block Block;
 	}
 	
 	public class NumberLiteralCommand : Command
 	{
 		public bool IsFloat;
 		public string Value;
-	}
-
-	public class FunctionDefineCommand : Command
-	{
-		public string Name;
-		public string ReturnType;
-		public List<VariableDefineCommand> Parameters;
-		public Command[] Commands;
 	}
 }
