@@ -15,11 +15,11 @@ const string exampleScript = @"
 		direction: int3
 	}
 
-	x: @double = 1
-	y: @double = 2
+	x: @double = alloc 1
+	y: @double = alloc 2
 	z: double = y
 	number: int = 1 
-	number2: float = 2.5f
+	number2: float = 2.5
 
 	a: @int3
 	b: int3
@@ -38,7 +38,7 @@ const string exampleScript = @"
 		x: int = 123
 		yz: {
 			y: int = 1
-			z: int = 12
+			z: @int = alloc 12
 		}
 	}
 ";

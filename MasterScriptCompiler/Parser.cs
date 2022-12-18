@@ -27,17 +27,15 @@ public static class Parser
 		Block ExpectBlock()
 		{
 			ExpectChar(startBlock);
-			var block = new Block(i.ToString())
-			{
-				Parent = currentBlock
-			};
+			var previousBlock = currentBlock;
+			var block = new Block(i.ToString());
 			currentBlock = block;
 			while (true)
 			{
 				if (endBlock.Contains(NextCharPeek())) break;
 				block.Commands.Add(ExpectCommand());
 			}
-			currentBlock = block.Parent;
+			currentBlock = previousBlock;
 			ExpectChar(endBlock);
 
 			return block;
@@ -57,6 +55,8 @@ public static class Parser
 					return ExpectVariableGetCommand();
 				case "struct":
 					return ExpectStructDefineCommand();
+				case "alloc":
+					return ExpectVariableAllocateCommand();
 				default:
 				{
 					var c = NextChar();
@@ -177,7 +177,12 @@ public static class Parser
 				};
 			}
 
-			if (NextChar() == '=') variableDefineCommand.Value = ExpectCommand();
+			if (NextChar() == '=')
+			{
+				var command = ExpectCommand();
+				if (command is not ValueCommand valueCommand) throw new Exception($"Expected value but got {command}");
+				variableDefineCommand.Value = valueCommand;
+			}
 			else i--;
 
 			variableDefineCommand.Length = i - variableDefineCommand.StartAt;
@@ -193,7 +198,9 @@ public static class Parser
 			};
 
 			ExpectChar("=");
-			variableSetCommand.Value = ExpectCommand();
+			var command = ExpectCommand();
+			if (command is not ValueCommand valueCommand) throw new Exception($"Expected value but got '{command}'");
+			variableSetCommand.Value = valueCommand;
 			
 			variableSetCommand.Length = i - variableSetCommand.StartAt;
 			return variableSetCommand;
@@ -268,11 +275,6 @@ public static class Parser
 				}
 				break;
 			}
-			if (NextCharPeek() == 'f')
-			{
-				number.Append('f');
-				i++;
-			}
 
 			if (number.Length == 0) throw new Exception($"Expected number but got nothing.");
 			numberLiteralCommand.Value = number.ToString();
@@ -281,11 +283,21 @@ public static class Parser
 			numberLiteralCommand.Length = i - numberLiteralCommand.StartAt;
 			return numberLiteralCommand;
 		}
+		
+		VariableAllocateCommand ExpectVariableAllocateCommand()
+		{
+			var variableAllocateCommand = new VariableAllocateCommand { StartAt = i };
+			var command = ExpectCommand();
+			if (command is not ValueCommand valueCommand) throw new Exception($"Expected value but got '{command}'");
+			variableAllocateCommand.Value = valueCommand;
+			variableAllocateCommand.Length = i - variableAllocateCommand.StartAt;
+			return variableAllocateCommand;
+		}
+
 	}
-	
+
 	public class Block
 	{
-		public Block? Parent;
 		public readonly string Name;
 		public readonly List<Command> Commands;
 
@@ -302,6 +314,14 @@ public static class Parser
 		public int Length;
 	}
 	
+	public class ValueCommand : Command
+	{
+	}
+	
+	public class LiteralCommand : ValueCommand
+	{
+	}
+	
 	public struct TypeName
 	{
 		public bool IsReference;
@@ -312,16 +332,16 @@ public static class Parser
 	{
 		public string Name;
 		public TypeName TypeName;
-		public Command? Value;
+		public ValueCommand? Value;
 	}
 
 	public class VariableSetCommand : Command
 	{
 		public string Name;
-		public Command Value;
+		public ValueCommand Value;
 	}
-
-	public class VariableGetCommand : Command
+	
+	public class VariableGetCommand : ValueCommand
 	{
 		public string Name;
 	}
@@ -331,10 +351,16 @@ public static class Parser
 		public string Name;
 		public List<VariableDefineCommand> Fields = new();
 	}
-	
-	public class NumberLiteralCommand : Command
+
+	public class NumberLiteralCommand : LiteralCommand
 	{
 		public bool IsFloat;
 		public string Value;
 	}
+	
+	public class VariableAllocateCommand : ValueCommand
+	{
+		public ValueCommand Value;
+	}
+
 }

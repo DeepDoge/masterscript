@@ -78,12 +78,14 @@ namespace MasterScript
 	{
 		public readonly Script Script;
 		public readonly Scope? Parent;
+		public readonly List<string> After = new();
 		
 		private readonly Dictionary<string, Parser.StructDefineCommand> _structs = new();
 		private readonly Dictionary<string, Parser.VariableDefineCommand> _variables = new();
 		
-		private readonly HashSet<string> _definedReferenceStructs = new();
-		
+		private readonly HashSet<string> _definedReferences = new();
+		private readonly HashSet<string> _allocatedReferences = new();
+
 		public Scope(Scope parent)
 		{
 			Script = parent.Script;
@@ -134,47 +136,91 @@ namespace MasterScript
 		
 		public void DefineReferenceStruct(string name)
 		{
-			_definedReferenceStructs.Add(name);
+			_definedReferences.Add(name);
+		}
+		
+		public void AllocateReference(string name)
+		{
+			_allocatedReferences.Add(name);
 		}
 		
 		public bool IsReferenceStructDefined(string name)
 		{
-			return _definedReferenceStructs.Contains(name);
+			var scope = this;
+			while (scope != null)
+			{
+				if (scope._definedReferences.Contains(name)) return true;
+				scope = scope.Parent;
+			}
+			return false;
+		}
+		
+		public bool IsReferenceStructAllocated(string name)
+		{
+			var scope = this;
+			while (scope != null)
+			{
+				if (scope._allocatedReferences.Contains(name)) return true;
+				scope = scope.Parent;
+			}
+			return false;
+		}
+		
+		public bool IsReferenceStructDefinedInThisScope(string name)
+		{
+			return _definedReferences.Contains(name);
 		}
 		
 		public bool IsStructDefined(string name)
 		{
-			return _structs.ContainsKey(name);
-		}
-		
-		public bool IsVariableDefined(string name)
-		{
-			return _variables.ContainsKey(name);
-		}
-		
-		public bool IsTypeDefined(string name)
-		{
-			return IsStructDefined(name) || IsVariableDefined(name);
+			var scope = this;
+			while (scope != null)
+			{
+				if (scope._structs.ContainsKey(name)) return true;
+				scope = scope.Parent;
+			}
+			return false;
 		}
 		
 		public bool IsPrimitiveType(string name)
 		{
 			return PrimitiveTypes.Contains(name) || PrimitiveTypes.Select(x => $"_type_{x}_").Contains(name);
 		}
+		
+		public bool IsTypeDefined(string name)
+		{
+			return IsStructDefined(name) || IsPrimitiveType(name);
+		}
+		
+		public bool IsVariableDefined(string name)
+		{
+			var scope = this;
+			while (scope != null)
+			{
+				if (scope._variables.ContainsKey(name)) return true;
+				scope = scope.Parent;
+			}
+			return false;
+		}
+		
+		public IEnumerable<string> ListAllocatedReferencesInThisScope()
+		{
+			return _allocatedReferences;
+		}
 	}
 
 	public static string Compile(string script)
 	{
 		var rootBlock = Parser.ParseScript(script);
-		var scope = new Scope(new Script());
-		scope.Script.CSharpScript.Append(CompileBlock(rootBlock, scope));
-		return scope.Script.ToString();
+		var scriptObject = new Script();
+		scriptObject.CSharpScript.Append(CompileBlock(new Scope(scriptObject), rootBlock));
+		return scriptObject.ToString();
 	}
 
-	private static string CompileBlock(Parser.Block block, Scope scope)
+	private static string CompileBlock(Scope scope, Parser.Block block)
 	{
 		var sb = new StringBuilder();
-		sb.Append($"/** Block: {block.Name} **/");
+		sb.Append($"/* Block: {block.Name} */");
 		sb.Append("{");
 		foreach (var command in block.Commands)
 		{
@@ -212,34 +258,48 @@ namespace MasterScript
 					variableGetCommand.Name = $"_var_{variableGetCommand.Name}_";
 					break;
 			}
-			sb.Append(CompileCommand(command, scope));
+			sb.Append(CompileCommand(scope, command, null));
 			sb.Append(';');
 		}
+		sb.Append(string.Join("", scope.After));
 		sb.Append("}");
 		return sb.ToString();
 	}
-	
-	private static string CompileCommand(Parser.Command command, Scope scope)
+
+	private static string CompileCommand(Scope scope, Parser.Command command, Parser.Command? previousCommand)
 	{
 		switch (command)
 		{
 			case Parser.StructDefineCommand structDefineCommand:
-				return CompileStruct(structDefineCommand, scope);
+				return CompileStruct(scope, structDefineCommand);
 			case Parser.VariableDefineCommand variableDefineCommand:
-				return CompileVariableDefinition(variableDefineCommand, scope, true);
+				return $"{CompileVariableDefinition(scope, variableDefineCommand)};{CompileVariableInitialization(scope, variableDefineCommand)}";
 			case Parser.VariableSetCommand variableSetCommand:
-				return CompileVariableSet(variableSetCommand, scope);
+				return CompileVariableSet(scope, variableSetCommand);
 			case Parser.VariableGetCommand variableGetCommand:
-				return CompileVariableGet(variableGetCommand, scope);
+			{
+				if (previousCommand is not Parser.VariableSetCommand variableSetCommand)
+					throw new Exception("Variable get command must be preceded by variable set command");
+				return CompileVariableGet(scope, variableGetCommand, variableSetCommand);
+			}
 			case Parser.NumberLiteralCommand numberLiteralCommand:
-				return CompileNumberLiteral(numberLiteralCommand, scope);
+			{
+				if (previousCommand is not Parser.VariableSetCommand variableSetCommand)
+					throw new Exception("Number literal can be used only as variable value");
+				return CompileNumberLiteral(scope, numberLiteralCommand, variableSetCommand);
+			}
+			case Parser.VariableAllocateCommand variableAllocateCommand:
+			{
+				if (previousCommand is not Parser.VariableSetCommand variableSetCommand)
+					throw new Exception("Variable allocation can be used only as variable value");
+				return CompileVariableAllocate(scope, variableAllocateCommand, variableSetCommand);
+			}
 			default:
-				return "";
 				throw new Exception($"Unknown command {command}");
 		}
 	}
 
-	private static string CompileStruct(Parser.StructDefineCommand structDefineCommand, Scope scope)
+	private static string CompileStruct(Scope scope, Parser.StructDefineCommand structDefineCommand)
 	{
 		scope.DefineStruct(structDefineCommand);
 		
@@ -249,7 +309,7 @@ namespace MasterScript
 		structBuilder.Append("{");
 		var structScope = new Scope(scope);
 		foreach (var field in structDefineCommand.Fields)
-			structBuilder.Append($"public {CompileVariableDefinition(field, structScope, false)};");
+			structBuilder.Append($"public {CompileVariableDefinition(structScope, field)};");
 		structBuilder.Append("}");
 		
 		scope.Script.Structs.Add(structBuilder.ToString());
@@ -260,14 +320,23 @@ namespace MasterScript
 		foreach (var field in structDefineCommand.Fields)
 		{
 			if (field.Value is { })
-				defaultVariableBuilder.Append($"{field.Name} = {CompileCommand(field.Value, structScope)},");
+				defaultVariableBuilder.Append(CompileVariableSet(structScope, new Parser.VariableSetCommand
+				{
+					StartAt = field.StartAt,
+					Length = field.Length,
+					Name = field.Name,
+					Value = field.Value
+				}));
+			else
+				defaultVariableBuilder.Append(CompileVariableInitialization(structScope, field));
+			defaultVariableBuilder.Append(',');
 		}
 		defaultVariableBuilder.Append("}");
 
 		return defaultVariableBuilder.ToString();
 	}
 
-	private static void CompileReferenceStruct(Parser.TypeName typeName, Scope scope)
+	private static void CompileReferenceStruct(Scope scope, Parser.TypeName typeName)
 	{
 		if (!typeName.IsReference) throw new Exception("Type is not reference");
 		if (scope.IsReferenceStructDefined(typeName.Name)) return;
@@ -279,108 +348,110 @@ namespace MasterScript
 		structBuilder.Append("{");
 		structBuilder.Append($"public static readonly int Size = Marshal.SizeOf<{typeName.Name}>();");
 		structBuilder.Append($"public {typeName.Name}* Pointer;");
-		structBuilder.Append($"public _REF_{typeName.Name}({typeName.Name} initialValue)");
+		structBuilder.Append($"public {typeName.Name}* Allocate({typeName.Name} initialValue)");
 		structBuilder.Append("{");
 		structBuilder.Append($"Pointer = ({typeName.Name}*)MasterScriptApi.Allocation.Allocate(Size);");
-		structBuilder.Append($"*Pointer = initialValue;");
+		structBuilder.Append("*Pointer = initialValue;");
+		structBuilder.Append("return Pointer;");
+		structBuilder.Append("}");
+		structBuilder.Append($"public static {typeName.Name}* AddRef({typeName.Name}* pointer)");
+		structBuilder.Append("{");
+		structBuilder.Append("MasterScriptApi.Allocation.AddRef(pointer);");
+		structBuilder.Append("return pointer;");
+		structBuilder.Append("}");
+		structBuilder.Append($"public static void RemoveRef({typeName.Name}* pointer)");
+		structBuilder.Append("{");
+		structBuilder.Append("MasterScriptApi.Allocation.RemoveRef(pointer);");
 		structBuilder.Append("}");
 		structBuilder.Append("}");
 
 		scope.Script.Structs.Add(structBuilder.ToString());
 	}
 	
-	private static string CompileVariableDefinition(Parser.VariableDefineCommand variableDefineCommand, Scope scope, bool compileSetter)
+	private static string CompileVariableDefinition(Scope scope, Parser.VariableDefineCommand variableDefineCommand)
 	{
 		scope.DefineVariable(variableDefineCommand);
+		if (!scope.IsTypeDefined(variableDefineCommand.TypeName.Name))
+			throw new Exception($"Type {variableDefineCommand.TypeName.Name} is not defined");
 
 		if (variableDefineCommand.TypeName.IsReference)
-		{
-			CompileReferenceStruct(variableDefineCommand.TypeName, scope);
-		}
-		
+			CompileReferenceStruct(scope, variableDefineCommand.TypeName);
 
 		var compiled = $"{variableDefineCommand.TypeName.Name}{(variableDefineCommand.TypeName.IsReference ? "*" : "")} {variableDefineCommand.Name}";
-	
-		if (!compileSetter) return compiled;
-		var defaultValue = scope.IsPrimitiveType(variableDefineCommand.TypeName.Name) ?
-			"default" :
-			$"{variableDefineCommand.TypeName.Name}_default";
-		
-		if (variableDefineCommand.TypeName.IsReference)
-			compiled += $" = new _REF_{variableDefineCommand.TypeName.Name}({defaultValue}).Pointer";
-		else
-			compiled += $" = {defaultValue}";
 
-		if (variableDefineCommand.Value is null) return compiled;
-		var setCommand = CompileVariableSet(new Parser.VariableSetCommand
-		{
-			StartAt = variableDefineCommand.StartAt,
-			Length = variableDefineCommand.Length,
-			Name = variableDefineCommand.Name,
-			Value = variableDefineCommand.Value
-		}, scope);
-		
-		compiled += $"; {setCommand}";
-		
 		return compiled;
 	}
+
+	private static string CompileVariableInitialization(Scope scope, Parser.VariableDefineCommand variableDefineCommand)
+	{
+		if (variableDefineCommand.Value is { })
+		{
+			return CompileVariableSet(scope, new Parser.VariableSetCommand
+			{
+				StartAt = variableDefineCommand.StartAt,
+				Length = variableDefineCommand.Length,
+				Name = variableDefineCommand.Name,
+				Value = variableDefineCommand.Value
+			});
+		}
 		
-	private static string CompileVariableSet(Parser.VariableSetCommand variableSetCommand, Scope scope)
+		if (variableDefineCommand.TypeName.IsReference) return "";
+
+		var defaultValue = scope.IsStructDefined(variableDefineCommand.TypeName.Name)
+			? $"{variableDefineCommand.TypeName.Name}_default"
+			: "default";
+		return $"{variableDefineCommand.Name} = {defaultValue}";
+	}
+		
+	private static string CompileVariableSet(Scope scope, Parser.VariableSetCommand variableSetCommand)
 	{
 		if (!scope.IsVariableDefined(variableSetCommand.Name))
 			throw new Exception($"Variable {variableSetCommand.Name} not defined");
-		var definitionVariable = scope.GetVariable(variableSetCommand.Name);
-		if (variableSetCommand.Value is Parser.VariableGetCommand variableGetCommand)
-		{
-			var setVariable = scope.GetVariable(variableGetCommand.Name);
-			if (setVariable.TypeName.IsReference)
-			{
-				if (definitionVariable.TypeName.IsReference)
-					return $"*{variableSetCommand.Name} = *{variableGetCommand.Name}";
-				else
-					return $"{variableSetCommand.Name} = *{variableGetCommand.Name}";
-			}
-			else
-			{
-				if (definitionVariable.TypeName.IsReference)
-					return $"*{variableSetCommand.Name} = {variableGetCommand.Name}";
-				else
-					return $"{variableSetCommand.Name} = {variableGetCommand.Name}";
-			}
-		}
-		else
-		{
-			if (definitionVariable.TypeName.IsReference)
-				return $"*{variableSetCommand.Name} = {CompileCommand(variableSetCommand.Value, scope)}";
-			else
-				return $"{variableSetCommand.Name} = {CompileCommand(variableSetCommand.Value, scope)}";
-		}
-	}
-	
-	private static string CompileVariableGet(Parser.VariableGetCommand variableGetCommand, Scope scope)
-	{
-		if (!scope.IsVariableDefined(variableGetCommand.Name))
-			throw new Exception($"Variable {variableGetCommand.Name} not defined");
-		// var variable = scope.GetVariable(variableGetCommand.Name);
-		return $"{variableGetCommand.Name}";
+		
+		// If value is a reference and being allocated, set it as allocated on the scope
+		if (variableSetCommand.Value is Parser.VariableAllocateCommand)
+			scope.AllocateReference(variableSetCommand.Name);
+		
+		return $"{variableSetCommand.Name} = {CompileCommand(scope, variableSetCommand.Value, variableSetCommand)}";
 	}
 
-	private static string CompileNumberLiteral(Parser.NumberLiteralCommand numberCommand, Scope scope)
+	private static string CompileVariableGet(Scope scope, Parser.VariableGetCommand variableGetCommand, Parser.VariableSetCommand variableSetCommand, bool noDefinitionCheck = false)
 	{
-		/*var suffix = type switch
+		if (!noDefinitionCheck && !scope.IsVariableDefined(variableGetCommand.Name))
+			throw new Exception($"Variable {variableGetCommand.Name} not defined");
+		var getVariable = scope.GetVariable(variableGetCommand.Name);
+		var setVariable = scope.GetVariable(variableSetCommand.Name);
+
+		return getVariable.TypeName.IsReference switch
 		{
-			"float" => "f",
-			"double" => "d",
-			"long" => "L",
-			"ulong" => "UL",
-			"uint" => "U",
-			"short" => "S",
-			"ushort" => "US",
-			"byte" => "B",
-			"sbyte" => "SB",
+			true when !scope.IsReferenceStructAllocated(variableGetCommand.Name) => throw new Exception($"Reference struct {variableGetCommand.Name} is not allocated"),
+			true when !setVariable.TypeName.IsReference => $"*{variableGetCommand.Name}",
+			_ => variableGetCommand.Name
+		};
+	}
+	
+	private static string CompileVariableAllocate(Scope scope, Parser.VariableAllocateCommand variableAllocateCommand, Parser.VariableSetCommand previousCommand)
+	{
+		var typeName = scope.GetVariable(previousCommand.Name).TypeName;
+		if (!typeName.IsReference) throw new Exception("Variable allocate must be used in reference variable");
+		var define = $"new _REF_{typeName.Name}().Allocate({CompileCommand(scope, variableAllocateCommand.Value, previousCommand)})";
+		scope.After.Add($"_REF_{typeName.Name}.RemoveRef({previousCommand.Name});");
+		return define;
+	}
+
+	private static string CompileNumberLiteral(Scope scope, Parser.NumberLiteralCommand numberCommand, Parser.VariableSetCommand previousCommand)
+	{
+		var type = scope.GetVariable(previousCommand.Name).TypeName.Name;
+		var suffix = type switch
+		{
+			"_type_float_" => "f",
+			"_type_double_" => "d",
+			"_type_uint_" => "u",
+			"_type_long_" => "l",
+			"_type_ulong_" => "ul",
 			_ => ""
-		};*/
-		return $"{numberCommand.Value}";
+		};
+		return $"{numberCommand.Value}{suffix}";
 
 	}
 }

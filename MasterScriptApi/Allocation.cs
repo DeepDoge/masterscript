@@ -14,7 +14,7 @@ public static unsafe class Allocation
 	public static void* Allocate(int size)
 	{
 		var ptr = (void*)Marshal.AllocHGlobal(size + Head.Size);
-		return (void*)((byte*)ptr + Head.Size);
+		return AddRef((byte*)ptr + Head.Size);
 	}
 	
 	public static Head* GetHead(void* ptr)
