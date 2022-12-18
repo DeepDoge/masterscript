@@ -81,26 +81,29 @@ namespace MasterScript
 
 		public static void Main()
 		{
-			int3 int3_default = new int3 { x = 1, y = 2, z = 3, };
-			Ray Ray_default = new Ray { };
-			double* x = new _REF_double(default).Pointer;
-			*x = 1;
-			double* y = new _REF_double(default).Pointer;
-			*y = 2;
-			double z = default;
-			z = *y;
-			int number = default;
-			number = 1;
-			float number2 = default;
-			number2 = 2.5f;
-			int3* a = new _REF_int3(int3_default).Pointer;
-			int3 b = int3_default;
-			*y = *x;
-			Ray ray = Ray_default;
-			_AnonymousStruct254_ _AnonymousStruct254__default = new _AnonymousStruct254_ { };
-			_AnonymousStruct310_ _AnonymousStruct310__default = new _AnonymousStruct310_ { y = 1, z = 12, };
-			_AnonymousStruct287_ _AnonymousStruct287__default = new _AnonymousStruct287_ { x = 123, };
-			_AnonymousStruct287_ test = _AnonymousStruct287__default;
+			/** Block: 2 **/
+			{
+				int3 int3_default = new int3 { x = 1, y = 2, z = 3, };
+				Ray Ray_default = new Ray { };
+				double* x = new _REF_double(default).Pointer;
+				*x = 1;
+				double* y = new _REF_double(default).Pointer;
+				*y = 2;
+				double z = default;
+				z = *y;
+				int number = default;
+				number = 1;
+				float number2 = default;
+				number2 = 2.5f;
+				int3* a = new _REF_int3(int3_default).Pointer;
+				int3 b = int3_default;
+				*y = *x;
+				Ray ray = Ray_default;
+				_AnonymousStruct254_ _AnonymousStruct254__default = new _AnonymousStruct254_ { };
+				_AnonymousStruct310_ _AnonymousStruct310__default = new _AnonymousStruct310_ { y = 1, z = 12, };
+				_AnonymousStruct287_ _AnonymousStruct287__default = new _AnonymousStruct287_ { x = 123, };
+				_AnonymousStruct287_ test = _AnonymousStruct287__default;
+			}
 		}
 	}
 }

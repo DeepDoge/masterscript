@@ -177,11 +177,14 @@ namespace MasterScript
 	private static string CompileBlock(Parser.Block block, Scope scope)
 	{
 		var sb = new StringBuilder();
+		sb.Append($"/** Block: {block.Name} **/");
+		sb.Append("{");
 		foreach (var command in block.Commands)
 		{
 			sb.Append(CompileCommand(command, scope));
 			sb.Append(';');
 		}
+		sb.Append("}");
 		return sb.ToString();
 	}
 	
