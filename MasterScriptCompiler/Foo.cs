@@ -18,91 +18,91 @@ namespace MasterScript
 	public static unsafe class Program
 	{
 		[StructLayout(LayoutKind.Sequential)]
-		public struct int3
+		public struct _type_int3_at_2
 		{
-			public int x;
-			public int y;
-			public int z;
+			public _type_int_ _var_x_;
+			public _type_int_ _var_y_;
+			public _type_int_ _var_z_;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct Ray
+		public struct _type_Ray_at_2
 		{
-			public int3 origin;
-			public int3 direction;
+			public _type_int3_at_2 _var_origin_;
+			public _type_int3_at_2 _var_direction_;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _REF_double
+		public struct _REF__type_double_
 		{
-			public static readonly int Size = Marshal.SizeOf<double>();
-			public double* Pointer;
+			public static readonly int Size = Marshal.SizeOf<_type_double_>();
+			public _type_double_* Pointer;
 
-			public _REF_double(double initialValue)
+			public _REF__type_double_(_type_double_ initialValue)
 			{
-				Pointer = (double*)MasterScriptApi.Allocation.Allocate(Size);
+				Pointer = (_type_double_*)MasterScriptApi.Allocation.Allocate(Size);
 				*Pointer = initialValue;
 			}
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _REF_int3
+		public struct _REF__type_int3_at_2
 		{
-			public static readonly int Size = Marshal.SizeOf<int3>();
-			public int3* Pointer;
+			public static readonly int Size = Marshal.SizeOf<_type_int3_at_2>();
+			public _type_int3_at_2* Pointer;
 
-			public _REF_int3(int3 initialValue)
+			public _REF__type_int3_at_2(_type_int3_at_2 initialValue)
 			{
-				Pointer = (int3*)MasterScriptApi.Allocation.Allocate(Size);
+				Pointer = (_type_int3_at_2*)MasterScriptApi.Allocation.Allocate(Size);
 				*Pointer = initialValue;
 			}
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _AnonymousStruct254_
+		public struct _type__AnonymousStruct254__at_2
 		{
-			public int x;
-			public int y;
+			public _type_int_ _var_x_;
+			public _type_int_ _var_y_;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _AnonymousStruct310_
+		public struct _type__AnonymousStruct310__at_2
 		{
-			public int y;
-			public int z;
+			public _type_int_ _var_y_;
+			public _type_int_ _var_z_;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _AnonymousStruct287_
+		public struct _type__AnonymousStruct287__at_2
 		{
-			public int x;
-			public _AnonymousStruct310_ yz;
+			public _type_int_ _var_x_;
+			public _type__AnonymousStruct310__at_2 _var_yz_;
 		}
 
 		public static void Main()
 		{
 			/** Block: 2 **/
 			{
-				int3 int3_default = new int3 { x = 1, y = 2, z = 3, };
-				Ray Ray_default = new Ray { };
-				double* x = new _REF_double(default).Pointer;
-				*x = 1;
-				double* y = new _REF_double(default).Pointer;
-				*y = 2;
-				double z = default;
-				z = *y;
-				int number = default;
-				number = 1;
-				float number2 = default;
-				number2 = 2.5f;
-				int3* a = new _REF_int3(int3_default).Pointer;
-				int3 b = int3_default;
-				*y = *x;
-				Ray ray = Ray_default;
-				_AnonymousStruct254_ _AnonymousStruct254__default = new _AnonymousStruct254_ { };
-				_AnonymousStruct310_ _AnonymousStruct310__default = new _AnonymousStruct310_ { y = 1, z = 12, };
-				_AnonymousStruct287_ _AnonymousStruct287__default = new _AnonymousStruct287_ { x = 123, };
-				_AnonymousStruct287_ test = _AnonymousStruct287__default;
+				_type_int3_at_2 _type_int3_at_2_default = new _type_int3_at_2 { _var_x_ = 1, _var_y_ = 2, _var_z_ = 3, };
+				_type_Ray_at_2 _type_Ray_at_2_default = new _type_Ray_at_2 { };
+				_type_double_* _var_x_ = new _REF__type_double_(default).Pointer;
+				*_var_x_ = 1;
+				_type_double_* _var_y_ = new _REF__type_double_(default).Pointer;
+				*_var_y_ = 2;
+				_type_double_ _var_z_ = default;
+				_var_z_ = *_var_y_;
+				_type_int_ _var_number_ = default;
+				_var_number_ = 1;
+				_type_float_ _var_number2_ = default;
+				_var_number2_ = 2.5f;
+				_type_int3_at_2* _var_a_ = new _REF__type_int3_at_2(_type_int3_at_2_default).Pointer;
+				_type_int3_at_2 _var_b_ = _type_int3_at_2_default;
+				*_var_y_ = *_var_x_;
+				_type_Ray_at_2 _var_ray_ = _type_Ray_at_2_default;
+				_type__AnonymousStruct254__at_2 _type__AnonymousStruct254__at_2_default = new _type__AnonymousStruct254__at_2 { };
+				_type__AnonymousStruct310__at_2 _type__AnonymousStruct310__at_2_default = new _type__AnonymousStruct310__at_2 { _var_y_ = 1, _var_z_ = 12, };
+				_type__AnonymousStruct287__at_2 _type__AnonymousStruct287__at_2_default = new _type__AnonymousStruct287__at_2 { _var_x_ = 123, };
+				_type__AnonymousStruct287__at_2 _var_test_ = _type__AnonymousStruct287__at_2_default;
 			}
 		}
 	}

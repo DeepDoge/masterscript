@@ -159,21 +159,18 @@ namespace MasterScript
 		
 		public bool IsPrimitiveType(string name)
 		{
-			return PrimitiveTypes.Contains(name);
+			return PrimitiveTypes.Contains(name) || PrimitiveTypes.Select(x => $"_type_{x}_").Contains(name);
 		}
 	}
 
 	public static string Compile(string script)
 	{
 		var rootBlock = Parser.ParseScript(script);
-		// TODO: Do the renaming on the parse result right here, so everything is named safely. Don't do the renaming while generating the C# code.
 		var scope = new Scope(new Script());
-
 		scope.Script.CSharpScript.Append(CompileBlock(rootBlock, scope));
-		
 		return scope.Script.ToString();
 	}
-	
+
 	private static string CompileBlock(Parser.Block block, Scope scope)
 	{
 		var sb = new StringBuilder();
@@ -181,6 +178,40 @@ namespace MasterScript
 		sb.Append("{");
 		foreach (var command in block.Commands)
 		{
+			switch (command)
+			{
+				case Parser.StructDefineCommand structDefineCommand:
+					structDefineCommand.Name = $"_type_{structDefineCommand.Name}_at_{block.Name}";
+					foreach (var field in structDefineCommand.Fields)
+					{
+						if (scope.IsPrimitiveType(field.TypeName.Name))
+							field.TypeName.Name = $"_type_{field.TypeName.Name}_";
+						else
+							field.TypeName.Name = $"_type_{field.TypeName.Name}_at_{block.Name}";
+						
+						field.Name = $"_var_{field.Name}_";
+					}
+					break;
+				case Parser.VariableDefineCommand variableDefineCommand:
+				{
+					if (scope.IsPrimitiveType(variableDefineCommand.TypeName.Name))
+						variableDefineCommand.TypeName.Name = $"_type_{variableDefineCommand.TypeName.Name}_";
+					else
+						variableDefineCommand.TypeName.Name = $"_type_{variableDefineCommand.TypeName.Name}_at_{block.Name}";
+					variableDefineCommand.Name = $"_var_{variableDefineCommand.Name}_";
+					if (variableDefineCommand.Value is Parser.VariableGetCommand defaultValue)
+						defaultValue.Name = $"_var_{defaultValue.Name}_";
+					break;
+				}
+				case Parser.VariableSetCommand variableSetCommand:
+					variableSetCommand.Name = $"_var_{variableSetCommand.Name}_";
+					if (variableSetCommand.Value is Parser.VariableGetCommand variableReferenceCommand)
+						variableReferenceCommand.Name = $"_var_{variableReferenceCommand.Name}_";
+					break;
+				case Parser.VariableGetCommand variableGetCommand:
+					variableGetCommand.Name = $"_var_{variableGetCommand.Name}_";
+					break;
+			}
 			sb.Append(CompileCommand(command, scope));
 			sb.Append(';');
 		}
