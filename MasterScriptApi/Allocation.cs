@@ -11,7 +11,7 @@ public static unsafe class Allocation
 		public uint ReferenceCount;
 	}
 	
-	public static void* Alloc(int size)
+	public static void* Allocate(int size)
 	{
 		var ptr = (void*)Marshal.AllocHGlobal(size + Head.Size);
 		return (void*)((byte*)ptr + Head.Size);

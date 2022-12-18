@@ -19,7 +19,9 @@ const string exampleScript = @"
 	y: @double = 2
 	z: double = y
 	number: int = 1 
-	number2: float = 2.5
+	number2: float = 2.5f
+
+	a: @int3
 
 	y = x
 
@@ -33,6 +35,10 @@ const string exampleScript = @"
 
 	test: {
 		x: int = 123
+		yz: {
+			y: int = 1
+			z: int = 12
+		}
 	}
 ";
 

@@ -159,10 +159,23 @@ public static class Parser
 			{
 				var structDefineCommand = ExpectStructDefineCommand();
 				currentBlock.Commands.Add(structDefineCommand);
-				variableDefineCommand.Type = structDefineCommand.Name;
+				var isReference = structDefineCommand.Name.StartsWith("@");
+				variableDefineCommand.TypeName = new TypeName
+				{
+					Name = isReference ? structDefineCommand.Name[1..] : structDefineCommand.Name,
+					IsReference = isReference
+				};
 			}
 			else
-				variableDefineCommand.Type = ExpectWord();
+			{
+				var name = ExpectWord();
+				var isReference = name.StartsWith("@");
+				variableDefineCommand.TypeName = new TypeName
+				{
+					Name = isReference ? name[1..] : name,
+					IsReference = isReference
+				};
+			}
 
 			if (NextChar() == '=') variableDefineCommand.Value = ExpectCommand();
 			else i--;
@@ -203,7 +216,21 @@ public static class Parser
 			var structDefineCommand = new StructDefineCommand { StartAt = i };
 
 			structDefineCommand.Name = NextCharPeek() == '{' ? $"_AnonymousStruct{structDefineCommand.StartAt}_" : ExpectWord();
-			structDefineCommand.Block = ExpectBlock();
+			var block = ExpectBlock();
+			foreach (var command in block.Commands)
+			{
+				switch (command)
+				{
+					case VariableDefineCommand variableDefineCommand:
+						structDefineCommand.Fields.Add(variableDefineCommand);
+						break;
+					case StructDefineCommand innerStructDefineCommand:
+						currentBlock.Commands.Add(innerStructDefineCommand);
+						break;
+					default:
+						throw new Exception($"Unexpected command '{command}' in struct definition");
+				}
+			}
 
 			structDefineCommand.Length = i - structDefineCommand.StartAt;
 			return structDefineCommand;
@@ -241,6 +268,11 @@ public static class Parser
 				}
 				break;
 			}
+			if (NextCharPeek() == 'f')
+			{
+				number.Append('f');
+				i++;
+			}
 
 			if (number.Length == 0) throw new Exception($"Expected number but got nothing.");
 			numberLiteralCommand.Value = number.ToString();
@@ -269,11 +301,17 @@ public static class Parser
 		public int StartAt;
 		public int Length;
 	}
+	
+	public struct TypeName
+	{
+		public bool IsReference;
+		public string Name;
+	}
 
 	public class VariableDefineCommand : Command
 	{
 		public string Name;
-		public string Type;
+		public TypeName TypeName;
 		public Command? Value;
 	}
 
@@ -291,7 +329,7 @@ public static class Parser
 	public class StructDefineCommand : Command
 	{
 		public string Name;
-		public Block Block;
+		public List<VariableDefineCommand> Fields = new();
 	}
 	
 	public class NumberLiteralCommand : Command
