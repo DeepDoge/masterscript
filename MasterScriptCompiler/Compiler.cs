@@ -320,6 +320,7 @@ namespace MasterScript
 		foreach (var field in structDefineCommand.Fields)
 		{
 			if (field.Value is { })
+			{
 				defaultVariableBuilder.Append(CompileVariableSet(structScope, new Parser.VariableSetCommand
 				{
 					StartAt = field.StartAt,
@@ -327,6 +328,10 @@ namespace MasterScript
 					Name = field.Name,
 					Value = field.Value
 				}));
+				
+				if (field.TypeName.IsReference)
+					scope.After.Add($"_REF_{field.TypeName.Name}.RemoveRef({structDefineCommand.Name}_default.{field.Name});");
+			}
 			else
 				defaultVariableBuilder.Append(CompileVariableInitialization(structScope, field));
 			defaultVariableBuilder.Append(',');
@@ -395,24 +400,26 @@ namespace MasterScript
 			});
 		}
 		
-		if (variableDefineCommand.TypeName.IsReference) return "";
-
-		var defaultValue = scope.IsStructDefined(variableDefineCommand.TypeName.Name)
+		var defaultValue = scope.IsStructDefined(variableDefineCommand.TypeName.Name) && !variableDefineCommand.TypeName.IsReference
 			? $"{variableDefineCommand.TypeName.Name}_default"
 			: "default";
 		return $"{variableDefineCommand.Name} = {defaultValue}";
 	}
-		
+
 	private static string CompileVariableSet(Scope scope, Parser.VariableSetCommand variableSetCommand)
 	{
 		if (!scope.IsVariableDefined(variableSetCommand.Name))
 			throw new Exception($"Variable {variableSetCommand.Name} not defined");
-		
-		// If value is a reference and being allocated, set it as allocated on the scope
-		if (variableSetCommand.Value is Parser.VariableAllocateCommand)
-			scope.AllocateReference(variableSetCommand.Name);
-		
-		return $"{variableSetCommand.Name} = {CompileCommand(scope, variableSetCommand.Value, variableSetCommand)}";
+
+		var setVariable = scope.GetVariable(variableSetCommand.Name);
+
+		var sb = new StringBuilder();
+
+		if (setVariable.TypeName.IsReference && scope.IsReferenceStructAllocated(setVariable.Name)) 
+			sb.Append($"_REF_{setVariable.TypeName.Name}.RemoveRef({setVariable.Name});");
+
+		sb.Append($"{variableSetCommand.Name} = {CompileCommand(scope, variableSetCommand.Value, variableSetCommand)}");
+		return sb.ToString();
 	}
 
 	private static string CompileVariableGet(Scope scope, Parser.VariableGetCommand variableGetCommand, Parser.VariableSetCommand variableSetCommand, bool noDefinitionCheck = false)
@@ -422,18 +429,20 @@ namespace MasterScript
 		var getVariable = scope.GetVariable(variableGetCommand.Name);
 		var setVariable = scope.GetVariable(variableSetCommand.Name);
 
-		return getVariable.TypeName.IsReference switch
-		{
-			true when !scope.IsReferenceStructAllocated(variableGetCommand.Name) => throw new Exception($"Reference struct {variableGetCommand.Name} is not allocated"),
-			true when !setVariable.TypeName.IsReference => $"*{variableGetCommand.Name}",
-			_ => variableGetCommand.Name
-		};
+		if (getVariable.TypeName.IsReference && !scope.IsReferenceStructAllocated(variableGetCommand.Name))
+			throw new Exception($"Reference struct {variableGetCommand.Name} is not allocated");
+		if (getVariable.TypeName.IsReference && !setVariable.TypeName.IsReference)
+			return $"*{variableGetCommand.Name}";
+		if (getVariable.TypeName.IsReference && setVariable.TypeName.IsReference)
+			return $"_REF_{getVariable.TypeName.Name}.AddRef({variableGetCommand.Name})";
+		return variableGetCommand.Name;
 	}
 	
 	private static string CompileVariableAllocate(Scope scope, Parser.VariableAllocateCommand variableAllocateCommand, Parser.VariableSetCommand previousCommand)
 	{
 		var typeName = scope.GetVariable(previousCommand.Name).TypeName;
 		if (!typeName.IsReference) throw new Exception("Variable allocate must be used in reference variable");
+		scope.AllocateReference(previousCommand.Name);
 		var define = $"new _REF_{typeName.Name}().Allocate({CompileCommand(scope, variableAllocateCommand.Value, previousCommand)})";
 		scope.After.Add($"_REF_{typeName.Name}.RemoveRef({previousCommand.Name});");
 		return define;

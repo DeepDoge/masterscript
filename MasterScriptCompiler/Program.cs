@@ -24,21 +24,19 @@ const string exampleScript = @"
 	a: @int3
 	b: int3
 
+	t: @int = alloc 123
+
 	y = x
 
 	ray: Ray
-
-	struct
-	{
-		x: int
-		y: int
-	}
 
 	test: {
 		x: int = 123
 		yz: {
 			y: int = 1
-			z: @int = alloc 12
+			z: {
+				a: @int = alloc 1
+			}
 		}
 	}
 ";
