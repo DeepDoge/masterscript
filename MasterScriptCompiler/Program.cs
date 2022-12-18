@@ -22,6 +22,7 @@ const string exampleScript = @"
 	number2: float = 2.5f
 
 	a: @int3
+	b: int3
 
 	y = x
 

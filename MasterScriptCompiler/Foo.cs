@@ -59,24 +59,24 @@ namespace MasterScript
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _AnonymousStruct245_
+		public struct _AnonymousStruct254_
 		{
 			public int x;
 			public int y;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _AnonymousStruct301_
+		public struct _AnonymousStruct310_
 		{
 			public int y;
 			public int z;
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		public struct _AnonymousStruct278_
+		public struct _AnonymousStruct287_
 		{
 			public int x;
-			public _AnonymousStruct301_ yz;
+			public _AnonymousStruct310_ yz;
 		}
 
 
@@ -104,24 +104,25 @@ namespace MasterScript
 			float number2 = default;
 			number2 = 2.5f;
 			int3* a = new _REF_int3(int3_default).Pointer;
+			int3 b = int3_default;
 			*y = *x;
 			Ray ray = Ray_default;
-			_AnonymousStruct245_ _AnonymousStruct245__default = new _AnonymousStruct245_
+			_AnonymousStruct254_ _AnonymousStruct254__default = new _AnonymousStruct254_
 			{
 			};
 			;
-			_AnonymousStruct301_ _AnonymousStruct301__default = new _AnonymousStruct301_
+			_AnonymousStruct310_ _AnonymousStruct310__default = new _AnonymousStruct310_
 			{
 				y = 1,
 				z = 12,
 			};
 			;
-			_AnonymousStruct278_ _AnonymousStruct278__default = new _AnonymousStruct278_
+			_AnonymousStruct287_ _AnonymousStruct287__default = new _AnonymousStruct287_
 			{
 				x = 123,
 			};
 			;
-			_AnonymousStruct278_ test = _AnonymousStruct278__default;
+			_AnonymousStruct287_ test = _AnonymousStruct287__default;
 		}
 	}
 }
