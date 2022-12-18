@@ -228,7 +228,7 @@ namespace MasterScript
 			if (field.Value is { })
 				defaultVariableBuilder.AppendLine($"{field.Name} = {CompileCommand(field.Value, structScope)},");
 		}
-		defaultVariableBuilder.AppendLine("};");
+		defaultVariableBuilder.AppendLine("}");
 
 		return defaultVariableBuilder.ToString();
 	}
