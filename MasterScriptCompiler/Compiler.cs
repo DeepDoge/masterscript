@@ -210,25 +210,25 @@ namespace MasterScript
 		scope.DefineStruct(structDefineCommand);
 		
 		var structBuilder = new StringBuilder();
-		structBuilder.AppendLine("[StructLayout(LayoutKind.Sequential)]");
-		structBuilder.AppendLine($"public struct {structDefineCommand.Name}");
-		structBuilder.AppendLine("{");
+		structBuilder.Append("[StructLayout(LayoutKind.Sequential)]");
+		structBuilder.Append($"public struct {structDefineCommand.Name}");
+		structBuilder.Append("{");
 		var structScope = new Scope(scope);
 		foreach (var field in structDefineCommand.Fields)
-			structBuilder.AppendLine($"public {CompileVariableDefinition(field, structScope, false)};");
-		structBuilder.AppendLine("}");
+			structBuilder.Append($"public {CompileVariableDefinition(field, structScope, false)};");
+		structBuilder.Append("}");
 		
 		scope.Script.Structs.Add(structBuilder.ToString());
 
 		var defaultVariableBuilder = new StringBuilder();
-		defaultVariableBuilder.AppendLine($"{structDefineCommand.Name} {structDefineCommand.Name}_default = new {structDefineCommand.Name}");
-		defaultVariableBuilder.AppendLine("{");
+		defaultVariableBuilder.Append($"{structDefineCommand.Name} {structDefineCommand.Name}_default = new {structDefineCommand.Name}");
+		defaultVariableBuilder.Append("{");
 		foreach (var field in structDefineCommand.Fields)
 		{
 			if (field.Value is { })
-				defaultVariableBuilder.AppendLine($"{field.Name} = {CompileCommand(field.Value, structScope)},");
+				defaultVariableBuilder.Append($"{field.Name} = {CompileCommand(field.Value, structScope)},");
 		}
-		defaultVariableBuilder.AppendLine("}");
+		defaultVariableBuilder.Append("}");
 
 		return defaultVariableBuilder.ToString();
 	}
@@ -240,17 +240,17 @@ namespace MasterScript
 		scope.DefineReferenceStruct(typeName.Name);
 		
 		var structBuilder = new StringBuilder();
-		structBuilder.AppendLine("[StructLayout(LayoutKind.Sequential)]");
-		structBuilder.AppendLine($"public struct _REF_{typeName.Name}");
-		structBuilder.AppendLine("{");
-		structBuilder.AppendLine($"public static readonly int Size = Marshal.SizeOf<{typeName.Name}>();");
-		structBuilder.AppendLine($"public {typeName.Name}* Pointer;");
-		structBuilder.AppendLine($"public _REF_{typeName.Name}({typeName.Name} initialValue)");
-		structBuilder.AppendLine("{");
-		structBuilder.AppendLine($"Pointer = ({typeName.Name}*)MasterScriptApi.Allocation.Allocate(Size);");
-		structBuilder.AppendLine($"*Pointer = initialValue;");
-		structBuilder.AppendLine("}");
-		structBuilder.AppendLine("}");
+		structBuilder.Append("[StructLayout(LayoutKind.Sequential)]");
+		structBuilder.Append($"public struct _REF_{typeName.Name}");
+		structBuilder.Append("{");
+		structBuilder.Append($"public static readonly int Size = Marshal.SizeOf<{typeName.Name}>();");
+		structBuilder.Append($"public {typeName.Name}* Pointer;");
+		structBuilder.Append($"public _REF_{typeName.Name}({typeName.Name} initialValue)");
+		structBuilder.Append("{");
+		structBuilder.Append($"Pointer = ({typeName.Name}*)MasterScriptApi.Allocation.Allocate(Size);");
+		structBuilder.Append($"*Pointer = initialValue;");
+		structBuilder.Append("}");
+		structBuilder.Append("}");
 
 		scope.Script.Structs.Add(structBuilder.ToString());
 	}
