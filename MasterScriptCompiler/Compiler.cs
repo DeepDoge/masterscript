@@ -166,6 +166,7 @@ namespace MasterScript
 	public static string Compile(string script)
 	{
 		var rootBlock = Parser.ParseScript(script);
+		// TODO: Do the renaming on the parse result right here, so everything is named safely. Don't do the renaming while generating the C# code.
 		var scope = new Scope(new Script());
 
 		scope.Script.CSharpScript.Append(CompileBlock(rootBlock, scope));
